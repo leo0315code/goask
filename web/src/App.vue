@@ -1,11 +1,15 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { store, logout, loadMe } from './store'
 import { toasts, toast } from './toast'
+import { useTheme } from './theme'
 
 const router = useRouter()
 const keyword = ref('')
+const { theme, toggle: toggleTheme } = useTheme()
+const themeIcon = computed(() => (theme.value === 'dark' ? '☀️' : '🌙'))
+const themeTitle = computed(() => (theme.value === 'dark' ? '切换到亮色模式' : '切换到暗黑模式'))
 
 function doSearch() {
   const kw = keyword.value.trim()
@@ -39,6 +43,7 @@ onUnmounted(() => window.removeEventListener('goask:unauthorized', onUnauthorize
         <input v-model="keyword" type="search" placeholder="搜索问题（标题 / 正文）…" />
       </form>
       <router-link to="/ask" class="btn primary">提问</router-link>
+      <button class="btn small theme-toggle" :title="themeTitle" @click="toggleTheme">{{ themeIcon }}</button>
       <nav class="user-box">
         <template v-if="store.me">
           <router-link :to="'/u/' + store.me.username">{{ store.me.username }}</router-link>

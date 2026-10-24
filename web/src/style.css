@@ -11,6 +11,32 @@
   --red: #dc2626;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(16, 24, 40, .06);
+  --tag-bg: #eff4ff;
+  --tag-hover-bg: #dbe7ff;
+  --vote-hover: #fff7ed;
+  --vote-active: #ffedd5;
+  --accept-bg: #f0fdf4;
+}
+
+/* ---- 暗黑主题 ---- */
+html.dark {
+  color-scheme: dark;
+  --bg: #0e1116;
+  --card: #161a22;
+  --border: #262c37;
+  --text: #e4e8ef;
+  --muted: #98a2b3;
+  --primary: #3b82f6;
+  --primary-dark: #60a5fa;
+  --green: #2fa96e;
+  --orange: #f59e0b;
+  --red: #ef4444;
+  --shadow: 0 1px 3px rgba(0, 0, 0, .5);
+  --tag-bg: rgba(59, 130, 246, .16);
+  --tag-hover-bg: rgba(59, 130, 246, .3);
+  --vote-hover: rgba(245, 158, 11, .12);
+  --vote-active: rgba(245, 158, 11, .24);
+  --accept-bg: rgba(47, 169, 110, .12);
 }
 
 * { box-sizing: border-box; }
@@ -48,7 +74,7 @@ a:hover { color: var(--primary-dark); }
   border: 1px solid var(--border); border-radius: 8px;
   font-size: 14px; background: var(--bg); outline: none;
 }
-.search input:focus { border-color: var(--primary); background: #fff; }
+.search input:focus { border-color: var(--primary); background: var(--card); }
 .user-box { display: flex; align-items: center; gap: 12px; font-size: 14px; }
 .user-box .rep { color: var(--orange); font-weight: 600; }
 
@@ -66,6 +92,7 @@ a:hover { color: var(--primary-dark); }
 .btn.danger:hover { border-color: var(--red); color: var(--red); }
 .btn.small { padding: 3px 10px; font-size: 13px; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+.theme-toggle { font-size: 15px; padding: 3px 9px; }
 
 /* ---- 卡片 ---- */
 .card {
@@ -112,10 +139,10 @@ a:hover { color: var(--primary-dark); }
 /* ---- 标签 ---- */
 .tag {
   display: inline-block; padding: 1px 10px;
-  background: #eff4ff; color: var(--primary);
+  background: var(--tag-bg); color: var(--primary);
   border-radius: 999px; font-size: 12px;
 }
-.tag:hover { background: #dbe7ff; color: var(--primary); }
+.tag:hover { background: var(--tag-hover-bg); color: var(--primary); }
 .hint { font-size: 13px; color: var(--muted); }
 
 /* ---- 右侧栏 ---- */
@@ -142,8 +169,8 @@ a:hover { color: var(--primary-dark); }
   color: #9ca3af; padding: 3px 7px; line-height: 1; border-radius: 6px;
   user-select: none; -webkit-tap-highlight-color: transparent;
 }
-.vote button:hover { color: var(--orange); background: #fff7ed; }
-.vote button.active { color: var(--orange); background: #ffedd5; }
+.vote button:hover { color: var(--orange); background: var(--vote-hover); }
+.vote button.active { color: var(--orange); background: var(--vote-active); }
 .vote .count { min-width: 30px; text-align: center; font-size: 17px; font-weight: 700; }
 .owner-actions { margin-left: auto; display: flex; gap: 8px; align-self: center; }
 .section-title {
@@ -156,16 +183,18 @@ a:hover { color: var(--primary-dark); }
 .answer .main { flex: 1; min-width: 0; }
 .answer-meta { margin-top: 8px; }
 .accept-badge { color: var(--green); font-weight: 700; font-size: 13px; }
-.accept-btn { color: var(--green); border-color: var(--green); background: #f0fdf4; }
+.accept-btn { color: var(--green); border-color: var(--green); background: var(--accept-bg); }
 .edit-form textarea, .edit-form input {
   width: 100%; padding: 9px 12px; margin-bottom: 8px;
   border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 14px;
+  background: var(--bg); color: var(--text);
 }
 .edit-form textarea { min-height: 120px; resize: vertical; }
 .edit-form .actions { display: flex; gap: 8px; }
 .card > textarea {
   width: 100%; min-height: 140px; padding: 10px 12px; resize: vertical;
   border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 14px;
+  background: var(--bg); color: var(--text);
 }
 .actions { margin-top: 10px; }
 
@@ -175,7 +204,7 @@ a:hover { color: var(--primary-dark); }
 .c-author { margin-right: 6px; }
 .c-time { color: var(--muted); margin-left: 6px; font-size: 12px; }
 .comment-form { display: flex; gap: 8px; margin-top: 8px; }
-.comment-form input { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+.comment-form input { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--bg); color: var(--text); }
 
 /* ---- 表单页 ---- */
 .form { max-width: 560px; margin: 12px auto; }
@@ -184,6 +213,7 @@ a:hover { color: var(--primary-dark); }
 .form input, .form textarea {
   width: 100%; padding: 9px 12px; font-size: 14px;
   border: 1px solid var(--border); border-radius: 8px; outline: none; font-family: inherit;
+  background: var(--bg); color: var(--text);
 }
 .form input:focus, .form textarea:focus { border-color: var(--primary); }
 .form textarea { min-height: 160px; resize: vertical; }
