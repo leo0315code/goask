@@ -1,6 +1,6 @@
 <script setup>
 // 评论列表 + 发表评论（Markdown 渲染；作者/管理员可删除）
-import { onMounted, ref } from 'vue'
+import { nextTick, onMounted, ref, watch } from 'vue'
 import { api } from '../api'
 import { store } from '../store'
 import { toast } from '../toast'
@@ -16,8 +16,18 @@ const list = ref([])
 const total = ref(0)
 const content = ref('')
 const submitting = ref(false)
+const inputEl = ref(null)
 
 const canManage = (c) => store.me && (store.me.id === c.user_id || store.me.role === 'admin')
+
+// 输入框随内容自动长高（上限 200px）
+watch(content, async () => {
+  await nextTick()
+  const el = inputEl.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+})
 
 async function fetchList() {
   const data = await api('GET', `/${props.targetType}s/${props.targetId}/comments?page=1&page_size=100`)
@@ -64,8 +74,16 @@ onMounted(fetchList)
       <button v-if="canManage(c)" class="btn small danger c-del" @click="remove(c)">删除</button>
     </div>
     <div v-if="store.me" class="comment-form">
-      <input v-model="content" maxlength="1000" placeholder="添加评论…（支持 Markdown）" @keyup.enter="submit" />
-      <button class="btn small" :disabled="submitting" @click="submit">评论</button>
+      <textarea
+        ref="inputEl" v-model="content" rows="2" maxlength="1000"
+        placeholder="添加评论…（支持 Markdown，⌘/Ctrl + Enter 发送）"
+        @keydown.ctrl.enter.prevent="submit"
+        @keydown.meta.enter.prevent="submit"
+      ></textarea>
+      <div class="cf-actions">
+        <span class="hint">{{ content.length }}/1000</span>
+        <button class="btn primary small" :disabled="submitting || !content.trim()" @click="submit">评论</button>
+      </div>
     </div>
     <div v-else class="hint">登录后可评论</div>
   </div>
