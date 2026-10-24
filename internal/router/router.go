@@ -14,6 +14,7 @@ import (
 
 	"github.com/leo0315code/goask/internal/config"
 	"github.com/leo0315code/goask/internal/handler"
+	"github.com/leo0315code/goask/internal/hub"
 	"github.com/leo0315code/goask/internal/middleware"
 	"github.com/leo0315code/goask/internal/pkg/apperr"
 	"github.com/leo0315code/goask/internal/pkg/captcha"
@@ -26,7 +27,8 @@ import (
 func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	repos := repository.NewRepos(db)
 	spamGuard := service.NewSpamGuard(repos.Spam)
-	notificationSvc := service.NewNotificationService(repos.Notifications)
+	notificationHub := hub.New()
+	notificationSvc := service.NewNotificationService(repos.Notifications, notificationHub)
 	captchaStore := captcha.New(5 * time.Minute)
 	authSvc := service.NewAuthService(repos.Users, cfg, captchaStore)
 	userSvc := service.NewUserService(repos.Users, cfg.BcryptCost)
@@ -84,7 +86,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	commentH := handler.NewCommentHandler(commentSvc)
 	voteH := handler.NewVoteHandler(voteSvc)
 	tagH := handler.NewTagHandler(tagSvc)
-	notificationH := handler.NewNotificationHandler(notificationSvc)
+	notificationH := handler.NewNotificationHandler(notificationSvc, notificationHub, cfg.JWTSecret, loadUser)
 	adminH := handler.NewAdminHandler(userSvc)
 
 	v1 := r.Group("/api/v1")
@@ -101,6 +103,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 
 	// 通知
 	v1.GET("/notifications", authRequired, notificationH.List)
+	v1.GET("/notifications/stream", notificationH.Stream) // SSE：token 走查询参数
 	v1.POST("/notifications/read-all", authRequired, notificationH.ReadAll)
 	v1.POST("/notifications/:id/read", authRequired, notificationH.Read)
 

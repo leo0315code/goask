@@ -13,6 +13,22 @@ const themeIcon = computed(() => (theme.value === 'dark' ? '☀️' : '🌙'))
 const themeTitle = computed(() => (theme.value === 'dark' ? '切换到亮色模式' : '切换到暗黑模式'))
 
 let unreadTimer = null
+let eventSource = null
+
+// SSE 实时通知推送；断线由浏览器自动重连，轮询仅作兜底
+function connectSSE() {
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
+  const token = localStorage.getItem('goask_token')
+  if (!token) return
+  eventSource = new EventSource('/api/v1/notifications/stream?token=' + encodeURIComponent(token))
+  eventSource.onmessage = () => refreshUnread()
+  eventSource.onerror = () => {
+    /* 连接异常时浏览器自动重连；60s 兜底轮询保证最终一致 */
+  }
+}
 
 function doSearch() {
   const kw = keyword.value.trim()
@@ -22,26 +38,41 @@ function doSearch() {
 function onUnauthorized() {
   store.me = null
   store.unread = 0
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
   toast('登录已过期，请重新登录')
 }
 
 function doLogout() {
   logout()
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
   toast('已退出登录', 'success')
   router.push('/')
 }
 
 onMounted(() => {
   window.addEventListener('goask:unauthorized', onUnauthorized)
-  // 顶部登录态兜底刷新 + 未读通知轮询
-  if (!store.ready) loadMe().then(refreshUnread)
-  unreadTimer = setInterval(refreshUnread, 30000)
+  // SSE 实时推送 + 低频轮询兜底（main.js 已在挂载前恢复登录态）
+  refreshUnread()
+  connectSSE()
+  unreadTimer = setInterval(refreshUnread, 60000)
 })
 onUnmounted(() => {
   window.removeEventListener('goask:unauthorized', onUnauthorized)
   if (unreadTimer) clearInterval(unreadTimer)
+  if (eventSource) eventSource.close()
 })
 watch(() => route.fullPath, refreshUnread)
+// 登录态变化（登录/登出）时重建 SSE 连接
+watch(() => store.me && store.me.id, () => {
+  refreshUnread()
+  connectSSE()
+})
 </script>
 
 <template>

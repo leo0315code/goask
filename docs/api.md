@@ -128,6 +128,16 @@ Authorization: Bearer <token>
 
 触发时机：有人回答/评论你的内容、你的回答被采纳、有人赞同你的问题或回答（撤销与反对不通知，自己操作自己不通知）。
 
+### GET `/api/v1/notifications/stream?token=<JWT>`　（SSE 实时推送）
+
+`text/event-stream` 长连接；通知产生时服务端即时推送：
+
+```
+data: {"type":"answer","content":"gin 框架怎么做优雅停机？","question_id":6}
+```
+
+EventSource 无法携带请求头，JWT 通过查询参数传递；25s 心跳保活，客户端断线自动重连。
+
 ## 4.6 管理端（仅管理员）
 
 | 方法 | 路径 | 说明 |

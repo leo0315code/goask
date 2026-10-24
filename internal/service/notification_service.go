@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 
+	"github.com/leo0315code/goask/internal/hub"
 	"github.com/leo0315code/goask/internal/model"
 	"github.com/leo0315code/goask/internal/pkg/httpx"
 	"github.com/leo0315code/goask/internal/repository"
@@ -28,10 +30,11 @@ type Notifier interface {
 
 type NotificationService struct {
 	repo NotificationRepo
+	hub  *hub.Hub // SSE 实时推送；为 nil 时退化为纯轮询
 }
 
-func NewNotificationService(repo NotificationRepo) *NotificationService {
-	return &NotificationService{repo: repo}
+func NewNotificationService(repo NotificationRepo, h *hub.Hub) *NotificationService {
+	return &NotificationService{repo: repo, hub: h}
 }
 
 // ---- Notifier 实现（自动跳过自己通知自己；失败不影响主流程）----
@@ -40,7 +43,7 @@ func (s *NotificationService) create(ctx context.Context, recipientID, actorID u
 	if s == nil || s.repo == nil || recipientID == 0 || recipientID == actorID {
 		return
 	}
-	_ = s.repo.Create(ctx, &model.Notification{
+	n := &model.Notification{
 		UserID:     recipientID,
 		Type:       notifType,
 		ActorID:    actorID,
@@ -48,7 +51,18 @@ func (s *NotificationService) create(ctx context.Context, recipientID, actorID u
 		TargetID:   targetID,
 		QuestionID: questionID,
 		Content:    content,
-	})
+	}
+	if err := s.repo.Create(ctx, n); err != nil {
+		return
+	}
+	// 实时推送给在线用户（SSE）；客户端收到后刷新未读数
+	if s.hub != nil {
+		if payload, err := json.Marshal(map[string]any{
+			"type": notifType, "content": content, "question_id": questionID,
+		}); err == nil {
+			s.hub.Publish(recipientID, string(payload))
+		}
+	}
 }
 
 func (s *NotificationService) NotifyAnswerCreated(ctx context.Context, recipientID, actorID, questionID uint64, questionTitle, _ string) {

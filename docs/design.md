@@ -88,9 +88,15 @@ GoAsk 是一个类 Stack Overflow 的问答社区后端系统，提供用户注�
 
 ### 6.1 认证与权限
 - 登录成功签发 `HS256` JWT，claims：`sub`（用户 ID）、`iat`、`exp`、`iss=goask`。
-- 密码策略：8–72 位；bcrypt cost 12（可配）。
-- 权限模型两级：`user` / `admin`。作者可编辑/删除自己的内容；`admin` 可删除任何内容、封禁用户入口预留。
-- 封禁用户（`status=banned`）登录时直接拒绝，存量 token 通过每次请求校验状态兜底（详情/写操作路径会加载用户）。
+- 密码策略：8–72 位；bcrypt cost 12（可配）；支持登录后修改密码（校验原密码）。
+- 权限模型两级：`user` / `admin`。作者可编辑/删除自己的内容；`admin` 可删除任何内容，并可封禁/解封用户（`/api/v1/admin/*`，操作写审计日志）。
+- **必登录接口每次请求从数据库加载用户**：封禁立即生效（存量 token 也会被 403 拒绝）、角色取最新值（提权/降权即时生效）。可选登录接口（如问题详情）只解析 token 不查库。
+
+### 6.1a 实时通知（SSE）
+- 通知产生时（回答/评论/采纳/赞同），除落库外通过进程内 `hub` 发布到接收人的订阅通道；
+- 前端用 `EventSource` 订阅 `GET /api/v1/notifications/stream?token=<JWT>`（EventSource 无法携带请求头，token 走查询参数），收到事件即刷新未读数——**页面无需刷新**；
+- 服务端 25s 心跳防代理断开空闲连接；浏览器断线自动重连；另有 60s 低频轮询兜底保证最终一致；
+- hub 为进程内实现，**多副本部署时需将 Publish 改为 Redis pub/sub**（订阅端逻辑不变）。
 
 ### 6.2 投票的一致性
 投票涉及三处数据：`votes` 行、目标表计数器、作者声望。采用**单事务 + upsert 语义**：
@@ -166,10 +172,11 @@ score = (upvote_count - downvote_count + answer_count) / POWER(天数 + 2, 1.5)
 
 ## 8. 部署与运维
 
-- **Docker**：多阶段构建，静态编译（CGO_ENABLED=0），运行镜像 alpine + 非 root 用户 + HEALTHCHECK；
+- **Docker**：多阶段构建（Node 编译前端 → Go 编译并嵌入），运行镜像 alpine + 非 root 用户 + HEALTHCHECK；
 - **docker compose**：`mysql:8.0`（utf8mb4、数据卷、健康检查）+ 应用容器，应用启动时自动迁移；
-- **日志**：JSON 到 stdout，交由采集器（loki/filebeat 等）处理；
-- **水平扩展**：服务无状态，直接多副本 + LB；数据库先垂直扩，读多写少场景可加只读副本（repo 层已隔离查询入口）；
+- **管理后台**：管理界面内嵌于主应用（`/#/admin`，角色门禁），管理 API 独立路径 `/api/v1/admin/*` 且写审计日志。需要更强隔离时，在反代层将 `/api/v1/admin` 限制为内网/VPN 网段可达即可，无需独立部署；规模扩大后再拆独立管理服务；
+- **日志**：JSON 到 stdout，交由采集器（loki/filebeat 等）处理；管理操作输出 `admin audit` 告警级日志；
+- **水平扩展**：服务无状态，直接多副本 + LB；数据库先垂直扩，读多写少场景可加只读副本；SSE hub 为进程内实现，多副本时通知推送需改走 Redis pub/sub；
 - **备份**：MySQL 定期 `mysqldump`/快照，`schema_migrations` 保证迁移幂等可重放。
 
 ## 9. Roadmap（v1 之后）

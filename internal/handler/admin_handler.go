@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"log/slog"
+
 	"github.com/gin-gonic/gin"
 
 	"github.com/leo0315code/goask/internal/middleware"
@@ -64,5 +66,14 @@ func (h *AdminHandler) SetUserStatus(c *gin.Context) {
 		httpx.Fail(c, err)
 		return
 	}
+	// 管理操作审计日志
+	slog.Warn("admin audit",
+		"action", "set_user_status",
+		"operator_id", operator.ID,
+		"operator", operator.Username,
+		"target_user_id", id,
+		"status", req.Status,
+		"ip", c.ClientIP(),
+	)
 	httpx.OK(c, nil)
 }
