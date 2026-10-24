@@ -158,7 +158,7 @@ EventSource 无法携带请求头，JWT 通过查询参数传递；25s 心跳保
 
 ### GET `/api/v1/questions`
 
-Query：`page`、`page_size`、`sort`（`latest` 默认 / `hot` / `unanswered`）、`tag`（标签名）、`time`（时间过滤：`day` / `week` / `month` / `year`，缺省全部）。
+Query：`page`、`page_size`、`sort`（`latest` 默认 / `hot` / `unanswered`）、`tag`（标签名）、`time`（时间过滤：`day` / `week` / `month` / `year`）、`accepted`（采纳过滤：`yes` / `no`，`time`/`accepted` 缺省全部）。
 
 ```json
 {"code":0,"message":"ok","data":{

@@ -117,8 +117,9 @@ func (s *QuestionService) Get(ctx context.Context, id, viewerID uint64) (*Questi
 }
 
 // List 问题列表：sort = latest（默认）/ hot / unanswered；tag 按标签名过滤；
-// since 时间过滤：day / week / month / year（空或未知 = 全部）。
-func (s *QuestionService) List(ctx context.Context, sort, tag, since string, pq httpx.PageQuery) ([]QuestionView, int64, error) {
+// since 时间过滤：day / week / month / year（空或未知 = 全部）；
+// accepted 采纳过滤：yes / no（空或未知 = 全部）。
+func (s *QuestionService) List(ctx context.Context, sort, tag, since, accepted string, pq httpx.PageQuery) ([]QuestionView, int64, error) {
 	var tagID uint64
 	if tag != "" {
 		t, err := s.tags.GetByName(ctx, strings.ToLower(strings.TrimSpace(tag)))
@@ -131,7 +132,7 @@ func (s *QuestionService) List(ctx context.Context, sort, tag, since string, pq 
 		tagID = t.ID
 	}
 	list, total, err := s.questions.List(ctx, repository.QuestionListQuery{
-		Sort: sort, TagID: tagID, Since: since, Page: pq.Page, PageSize: pq.PageSize,
+		Sort: sort, TagID: tagID, Since: since, Accepted: accepted, Page: pq.Page, PageSize: pq.PageSize,
 	})
 	if err != nil {
 		return nil, 0, err

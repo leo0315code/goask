@@ -59,6 +59,7 @@ type QuestionListQuery struct {
 	Sort     string // latest | hot | unanswered；Search 非空时按相关度
 	TagID    uint64 // 0 = 不过滤
 	Since    string // 时间过滤：day | week | month | year（其他 = 全部）
+	Accepted string // 采纳过滤：yes | no（其他 = 全部）
 	Search   string // 全文检索关键词
 	UserID   uint64 // 0 = 不过滤
 	Page     int
@@ -91,6 +92,12 @@ func (r *QuestionRepo) List(ctx context.Context, q QuestionListQuery) ([]model.Q
 		}
 		if q.Sort == "unanswered" {
 			db = db.Where("answer_count = 0")
+		}
+		switch q.Accepted {
+		case "yes":
+			db = db.Where("accepted_answer_id IS NOT NULL")
+		case "no":
+			db = db.Where("accepted_answer_id IS NULL")
 		}
 		return db
 	}

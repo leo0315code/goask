@@ -24,6 +24,12 @@ const times = [
   { key: 'year', label: '一年内' },
 ]
 
+const accepts = [
+  { key: 'all', label: '全部' },
+  { key: 'yes', label: '已采纳' },
+  { key: 'no', label: '未采纳' },
+]
+
 const list = ref([])
 const total = ref(0)
 const loading = ref(true)
@@ -32,6 +38,7 @@ const sort = computed(() => route.query.sort || 'latest')
 const keyword = computed(() => route.query.q || '')
 const tag = computed(() => route.query.tag || '')
 const time = computed(() => route.query.time || 'all')
+const accepted = computed(() => route.query.accepted || 'all')
 const page = computed(() => Number(route.query.page) || 1)
 const pageSize = 15
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
@@ -42,6 +49,7 @@ async function fetchList() {
     const params = new URLSearchParams({ sort: sort.value, ...Object.fromEntries(new URLSearchParams(pageParams(page.value, pageSize))) })
     if (tag.value) params.set('tag', tag.value)
     if (time.value !== 'all') params.set('time', time.value)
+    if (accepted.value !== 'all') params.set('accepted', accepted.value)
     const path = keyword.value ? '/search?q=' + encodeURIComponent(keyword.value) : '/questions'
     const data = await api('GET', path + '?' + params.toString())
     list.value = data.list
@@ -74,6 +82,9 @@ function go(change) {
   const currentTime = change.time !== undefined ? change.time : time.value
   if (currentTime !== 'all') query.time = currentTime
   if (change.time !== undefined) delete query.page
+  const currentAccepted = change.accepted !== undefined ? change.accepted : accepted.value
+  if (currentAccepted !== 'all') query.accepted = currentAccepted
+  if (change.accepted !== undefined) delete query.page
   router.push({ path: '/', query })
 }
 
@@ -104,6 +115,15 @@ watch(() => route.query, fetchList, { immediate: true })
           class="chip" :class="{ active: time === t.key }"
           @click="go({ time: t.key })"
         >{{ t.label }}</button>
+      </div>
+
+      <div v-if="!keyword" class="filter-row">
+        <span class="filter-label">采纳</span>
+        <button
+          v-for="a in accepts" :key="a.key"
+          class="chip" :class="{ active: accepted === a.key }"
+          @click="go({ accepted: a.key })"
+        >{{ a.label }}</button>
       </div>
 
       <div v-if="loading" class="loading">加载中…</div>
