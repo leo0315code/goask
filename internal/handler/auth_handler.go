@@ -13,11 +13,34 @@ import (
 )
 
 type AuthHandler struct {
-	auth *service.AuthService
+	auth  *service.AuthService
+	users *service.UserService
 }
 
-func NewAuthHandler(auth *service.AuthService) *AuthHandler {
-	return &AuthHandler{auth: auth}
+func NewAuthHandler(auth *service.AuthService, users *service.UserService) *AuthHandler {
+	return &AuthHandler{auth: auth, users: users}
+}
+
+type changePasswordReq struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required,min=8,max=72"`
+}
+
+// ChangePassword 修改当前用户密码。
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	uid, ok := currentUserID(c)
+	if !ok {
+		return
+	}
+	var req changePasswordReq
+	if !httpx.Bind(c, &req) {
+		return
+	}
+	if err := h.users.ChangePassword(c.Request.Context(), uid, req.OldPassword, req.NewPassword); err != nil {
+		httpx.Fail(c, err)
+		return
+	}
+	httpx.OK(c, nil)
 }
 
 // Captcha 发放图形算术验证码（注册用），并附带注册策略提示。

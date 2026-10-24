@@ -19,6 +19,9 @@ type UserRepo interface {
 	GetByUsername(ctx context.Context, username string) (*model.User, error)
 	GetByEmailOrUsername(ctx context.Context, account string) (*model.User, error)
 	UpdateProfile(ctx context.Context, id uint64, bio, avatarURL string) error
+	UpdatePassword(ctx context.Context, id uint64, hash string) error
+	SetStatus(ctx context.Context, id uint64, status string) error
+	List(ctx context.Context, q string, page, pageSize int) ([]model.User, int64, error)
 	GetByIDs(ctx context.Context, ids []uint64) ([]model.User, error)
 }
 

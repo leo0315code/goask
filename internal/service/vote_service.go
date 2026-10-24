@@ -9,11 +9,12 @@ import (
 )
 
 type VoteService struct {
-	votes VoteRepo
+	votes    VoteRepo
+	notifier Notifier
 }
 
-func NewVoteService(votes VoteRepo) *VoteService {
-	return &VoteService{votes: votes}
+func NewVoteService(votes VoteRepo, notifier Notifier) *VoteService {
+	return &VoteService{votes: votes, notifier: notifier}
 }
 
 // Vote 投票：value=1 赞 / -1 踩；同向再点撤销，反向切换（语义见 repository.Vote）。
@@ -27,7 +28,15 @@ func (s *VoteService) Vote(ctx context.Context, userID uint64, targetType string
 	if targetID == 0 {
 		return nil, apperr.With(apperr.ErrBadRequest, "无效的目标 ID")
 	}
-	return s.votes.Vote(ctx, userID, targetType, targetID, value)
+	state, err := s.votes.Vote(ctx, userID, targetType, targetID, value)
+	if err != nil {
+		return nil, err
+	}
+	// 最终状态为赞同才通知（撤销/反对不通知）
+	if state != nil && state.Value == 1 && s.notifier != nil {
+		s.notifier.NotifyUpvote(ctx, userID, targetType, targetID)
+	}
+	return state, nil
 }
 
 // ViewerVote 查询当前用户对目标的投票值（0 表示未投票）。

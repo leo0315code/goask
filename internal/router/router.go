@@ -26,13 +26,20 @@ import (
 func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	repos := repository.NewRepos(db)
 	spamGuard := service.NewSpamGuard(repos.Spam)
+	notificationSvc := service.NewNotificationService(repos.Notifications)
 	captchaStore := captcha.New(5 * time.Minute)
 	authSvc := service.NewAuthService(repos.Users, cfg, captchaStore)
-	questionSvc := service.NewQuestionService(repos.Questions, repos.Answers, repos.Users, repos.Tags, repos.Votes, spamGuard)
-	answerSvc := service.NewAnswerService(repos.Answers, repos.Questions, repos.Users, spamGuard)
-	commentSvc := service.NewCommentService(repos.Comments, repos.Questions, repos.Answers, repos.Users, spamGuard)
-	voteSvc := service.NewVoteService(repos.Votes)
+	userSvc := service.NewUserService(repos.Users, cfg.BcryptCost)
+	questionSvc := service.NewQuestionService(repos.Questions, repos.Answers, repos.Users, repos.Tags, repos.Votes, spamGuard, notificationSvc)
+	answerSvc := service.NewAnswerService(repos.Answers, repos.Questions, repos.Users, spamGuard, notificationSvc)
+	commentSvc := service.NewCommentService(repos.Comments, repos.Questions, repos.Answers, repos.Users, spamGuard, notificationSvc)
+	voteSvc := service.NewVoteService(repos.Votes, notificationSvc)
 	tagSvc := service.NewTagService(repos.Tags)
+
+	// 必登录认证时从数据库加载用户：封禁即时生效、角色取最新值
+	loadUser := func(c *gin.Context, id uint64) (any, error) {
+		return repos.Users.GetByID(c.Request.Context(), id)
+	}
 
 	logger := slog.Default()
 	if cfg.IsProd() {
@@ -68,15 +75,17 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	r.NoRoute(webAssets())
 
 	authLimiter := middleware.RateLimit(cfg.RateLimitAuth)
-	authRequired := middleware.Auth(cfg.JWTSecret, true)
-	authOptional := middleware.Auth(cfg.JWTSecret, false)
+	authRequired := middleware.Auth(cfg.JWTSecret, true, loadUser)
+	authOptional := middleware.Auth(cfg.JWTSecret, false, nil)
 
-	authH := handler.NewAuthHandler(authSvc)
+	authH := handler.NewAuthHandler(authSvc, userSvc)
 	questionH := handler.NewQuestionHandler(questionSvc)
 	answerH := handler.NewAnswerHandler(answerSvc)
 	commentH := handler.NewCommentHandler(commentSvc)
 	voteH := handler.NewVoteHandler(voteSvc)
 	tagH := handler.NewTagHandler(tagSvc)
+	notificationH := handler.NewNotificationHandler(notificationSvc)
+	adminH := handler.NewAdminHandler(userSvc)
 
 	v1 := r.Group("/api/v1")
 	v1.Use(authOptional)
@@ -87,7 +96,17 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	v1.POST("/auth/login", authLimiter, authH.Login)
 	v1.GET("/users/me", authRequired, authH.Me)
 	v1.PUT("/users/me", authRequired, authH.UpdateMe)
+	v1.PUT("/users/me/password", authRequired, authH.ChangePassword)
 	v1.GET("/users/:username", authH.PublicProfile)
+
+	// 通知
+	v1.GET("/notifications", authRequired, notificationH.List)
+	v1.POST("/notifications/read-all", authRequired, notificationH.ReadAll)
+	v1.POST("/notifications/:id/read", authRequired, notificationH.Read)
+
+	// 管理端
+	v1.GET("/admin/users", authRequired, adminH.ListUsers)
+	v1.PUT("/admin/users/:id/status", authRequired, adminH.SetUserStatus)
 
 	// 问题与检索
 	v1.GET("/questions", questionH.List)

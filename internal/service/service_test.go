@@ -68,6 +68,12 @@ func (f *fakeUserRepo) GetByEmailOrUsername(_ context.Context, account string) (
 
 func (f *fakeUserRepo) UpdateProfile(_ context.Context, _ uint64, _, _ string) error { return nil }
 
+func (f *fakeUserRepo) UpdatePassword(_ context.Context, _ uint64, _ string) error { return nil }
+func (f *fakeUserRepo) SetStatus(_ context.Context, _ uint64, _ string) error      { return nil }
+func (f *fakeUserRepo) List(_ context.Context, _ string, _, _ int) ([]model.User, int64, error) {
+	return nil, 0, nil
+}
+
 func (f *fakeUserRepo) GetByIDs(_ context.Context, ids []uint64) ([]model.User, error) {
 	var out []model.User
 	for _, id := range ids {
@@ -256,7 +262,7 @@ func (f *fakeVoteRepo) GetViewerVote(_ context.Context, _ uint64, _ string, _ ui
 
 func TestVoteServiceValidation(t *testing.T) {
 	fake := &fakeVoteRepo{state: &repository.VoteState{Value: 1, UpvoteCount: 1}}
-	svc := NewVoteService(fake)
+	svc := NewVoteService(fake, nil)
 	ctx := context.Background()
 
 	state, err := svc.Vote(ctx, 1, model.TargetAnswer, 42, 1)
@@ -320,7 +326,7 @@ func TestAcceptAnswerPermission(t *testing.T) {
 
 	fq := &fakeQuestionRepoForAccept{question: question}
 	fa := &fakeAnswerRepoForAccept{answer: answer}
-	svc := NewQuestionService(fq, fa, &fakeUserRepo{}, nil, &fakeVoteRepo{}, fakeSpam{})
+	svc := NewQuestionService(fq, fa, &fakeUserRepo{}, nil, &fakeVoteRepo{}, fakeSpam{}, nil)
 
 	// 非提问者且非管理员 → 403
 	err := svc.AcceptAnswer(ctx, 999, 10, 20, false)

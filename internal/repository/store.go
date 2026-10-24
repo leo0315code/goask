@@ -19,24 +19,26 @@ func NewStore(db *gorm.DB) *Store { return &Store{DB: db} }
 
 // Repos 绑定到同一 DB 执行体（连接或事务）的仓储集合。
 type Repos struct {
-	Users     *UserRepo
-	Questions *QuestionRepo
-	Answers   *AnswerRepo
-	Votes     *VoteRepo
-	Comments  *CommentRepo
-	Tags      *TagRepo
-	Spam      *SpamRepo
+	Users         *UserRepo
+	Questions     *QuestionRepo
+	Answers       *AnswerRepo
+	Votes         *VoteRepo
+	Comments      *CommentRepo
+	Tags          *TagRepo
+	Spam          *SpamRepo
+	Notifications *NotificationRepo
 }
 
 func NewRepos(db *gorm.DB) *Repos {
 	return &Repos{
-		Users:     &UserRepo{db: db},
-		Questions: &QuestionRepo{db: db},
-		Answers:   &AnswerRepo{db: db},
-		Votes:     &VoteRepo{db: db},
-		Comments:  &CommentRepo{db: db},
-		Tags:      &TagRepo{db: db},
-		Spam:      &SpamRepo{db: db},
+		Users:         &UserRepo{db: db},
+		Questions:     &QuestionRepo{db: db},
+		Answers:       &AnswerRepo{db: db},
+		Votes:         &VoteRepo{db: db},
+		Comments:      &CommentRepo{db: db},
+		Tags:          &TagRepo{db: db},
+		Spam:          &SpamRepo{db: db},
+		Notifications: &NotificationRepo{db: db},
 	}
 }
 

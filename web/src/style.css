@@ -258,6 +258,60 @@ a:hover { color: var(--primary-dark); }
 .chip:hover { color: var(--primary); border-color: var(--primary); }
 .chip.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 
+/* ---- 铃铛 / 通知 ---- */
+.bell { position: relative; font-size: 16px; text-decoration: none; }
+.bell-badge {
+  position: absolute; top: -8px; right: -12px;
+  background: var(--red); color: #fff; font-size: 11px; line-height: 1;
+  padding: 2px 5px; border-radius: 999px; font-weight: 700;
+}
+.notif { display: flex; gap: 10px; cursor: pointer; }
+.notif:hover { border-color: var(--primary); }
+.notif .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-top: 8px; flex-shrink: 0; }
+.notif.unread .notif-text { font-weight: 600; }
+.notif-body { flex: 1; min-width: 0; }
+.notif-text { color: var(--text); }
+.notif-title { color: var(--primary); }
+
+/* ---- Markdown 正文 ---- */
+.markdown { word-break: break-word; }
+.markdown h1, .markdown h2, .markdown h3, .markdown h4 { margin: 16px 0 8px; line-height: 1.4; }
+.markdown p { margin: 8px 0; }
+.markdown ul, .markdown ol { margin: 8px 0; padding-left: 24px; }
+.markdown blockquote {
+  margin: 10px 0; padding: 6px 14px;
+  border-left: 3px solid var(--primary); background: var(--tag-bg);
+  border-radius: 0 8px 8px 0; color: var(--muted);
+}
+.markdown code {
+  font-family: Menlo, Consolas, monospace; font-size: 13px;
+  background: var(--vote-pill-bg); padding: 2px 6px; border-radius: 6px;
+}
+.markdown pre {
+  background: #0d1117; padding: 14px 16px; border-radius: 10px;
+  overflow: auto; margin: 10px 0; line-height: 1.55;
+}
+.markdown pre code { background: none; padding: 0; color: #e6edf3; font-size: 13px; }
+.markdown a { text-decoration: underline; }
+.markdown img { max-width: 100%; }
+.markdown table { border-collapse: collapse; margin: 10px 0; }
+.markdown th, .markdown td { border: 1px solid var(--border); padding: 6px 12px; }
+.markdown hr { border: none; border-top: 1px dashed var(--border); margin: 14px 0; }
+
+/* ---- 管理页 ---- */
+.admin-search { display: flex; gap: 8px; }
+.admin-search input {
+  padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 14px; background: var(--bg); color: var(--text); width: 220px;
+}
+.admin-table-wrap { padding: 0; overflow-x: auto; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table th, .admin-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.admin-table th { color: var(--muted); font-weight: 600; }
+.admin-table tr:last-child td { border-bottom: none; }
+.muted-td { color: var(--muted); }
+.tag.banned { background: rgba(220, 38, 38, .12); color: var(--red); }
+
 /* ---- 个人主页 ---- */
 .profile-head { display: flex; gap: 18px; align-items: center; }
 .avatar {

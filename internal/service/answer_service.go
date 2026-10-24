@@ -15,10 +15,11 @@ type AnswerService struct {
 	questions QuestionRepo
 	users     UserRepo
 	spam      SpamChecker
+	notifier  Notifier
 }
 
-func NewAnswerService(answers AnswerRepo, questions QuestionRepo, users UserRepo, spam SpamChecker) *AnswerService {
-	return &AnswerService{answers: answers, questions: questions, users: users, spam: spam}
+func NewAnswerService(answers AnswerRepo, questions QuestionRepo, users UserRepo, spam SpamChecker, notifier Notifier) *AnswerService {
+	return &AnswerService{answers: answers, questions: questions, users: users, spam: spam, notifier: notifier}
 }
 
 func validateContent(content string) (string, error) {
@@ -88,6 +89,9 @@ func (s *AnswerService) Create(ctx context.Context, userID, questionID uint64, c
 	}
 	if err := s.answers.Create(ctx, a); err != nil {
 		return nil, err
+	}
+	if s.notifier != nil {
+		s.notifier.NotifyAnswerCreated(ctx, q.UserID, userID, questionID, q.Title, a.Content)
 	}
 	return s.buildView(ctx, a)
 }

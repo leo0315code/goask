@@ -5,6 +5,7 @@ import { api } from './api'
 export const store = reactive({
   me: null,
   ready: false,
+  unread: 0, // 未读通知数
 })
 
 export async function loadMe() {
@@ -29,4 +30,19 @@ export function setToken(token) {
 export function logout() {
   localStorage.removeItem('goask_token')
   store.me = null
+  store.unread = 0
+}
+
+// 刷新未读通知数（顶栏铃铛用）
+export async function refreshUnread() {
+  if (!localStorage.getItem('goask_token')) {
+    store.unread = 0
+    return
+  }
+  try {
+    const data = await api('GET', '/notifications?page=1&page_size=1')
+    store.unread = data.unread_count || 0
+  } catch {
+    store.unread = 0
+  }
 }

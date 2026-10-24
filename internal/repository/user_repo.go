@@ -71,3 +71,46 @@ func (r *UserRepo) UpdateProfile(ctx context.Context, id uint64, bio, avatarURL 
 	}
 	return nil
 }
+
+func (r *UserRepo) UpdatePassword(ctx context.Context, id uint64, hash string) error {
+	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).
+		Update("password_hash", hash)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return apperr.ErrNotFound
+	}
+	return nil
+}
+
+// SetStatus 管理员设置用户状态（active / banned）。
+func (r *UserRepo) SetStatus(ctx context.Context, id uint64, status string) error {
+	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).
+		Update("status", status)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return apperr.ErrNotFound
+	}
+	return nil
+}
+
+// List 管理端用户列表，按用户名/邮箱模糊搜索。
+func (r *UserRepo) List(ctx context.Context, q string, page, pageSize int) ([]model.User, int64, error) {
+	base := func() *gorm.DB {
+		db := r.db.WithContext(ctx).Model(&model.User{})
+		if q != "" {
+			db = db.Where("username LIKE ? OR email LIKE ?", "%"+q+"%", "%"+q+"%")
+		}
+		return db
+	}
+	var total int64
+	if err := base().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var users []model.User
+	err := base().Order("id DESC").Limit(pageSize).Offset((page - 1) * pageSize).Find(&users).Error
+	return users, total, err
+}

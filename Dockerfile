@@ -7,7 +7,7 @@ COPY web/ .
 RUN npm run build
 
 # ---- Go 构建 ----
-FROM golang:1.22-alpine AS build
+FROM golang:1.27-alpine AS build
 WORKDIR /src
 
 # 先拷贝依赖清单，利用 Docker 层缓存

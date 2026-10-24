@@ -16,10 +16,11 @@ type CommentService struct {
 	answers   AnswerRepo
 	users     UserRepo
 	spam      SpamChecker
+	notifier  Notifier
 }
 
-func NewCommentService(comments CommentRepo, questions QuestionRepo, answers AnswerRepo, users UserRepo, spam SpamChecker) *CommentService {
-	return &CommentService{comments: comments, questions: questions, answers: answers, users: users, spam: spam}
+func NewCommentService(comments CommentRepo, questions QuestionRepo, answers AnswerRepo, users UserRepo, spam SpamChecker, notifier Notifier) *CommentService {
+	return &CommentService{comments: comments, questions: questions, answers: answers, users: users, spam: spam, notifier: notifier}
 }
 
 func validateCommentContent(content string) (string, error) {
@@ -30,29 +31,35 @@ func validateCommentContent(content string) (string, error) {
 	return content, nil
 }
 
-// ensureTarget 校验评论目标存在且未删除。
-func (s *CommentService) ensureTarget(ctx context.Context, targetType string, targetID uint64) error {
+// commentTarget 评论目标的归属信息。
+type commentTarget struct {
+	authorID   uint64 // 目标作者（通知接收人）
+	questionID uint64 // 所属问题（跳转用）
+}
+
+// ensureTarget 校验评论目标存在且未删除，返回归属信息。
+func (s *CommentService) ensureTarget(ctx context.Context, targetType string, targetID uint64) (commentTarget, error) {
 	switch targetType {
 	case model.TargetQuestion:
 		q, err := s.questions.GetByID(ctx, targetID)
 		if err != nil {
-			return err
+			return commentTarget{}, err
 		}
 		if q.Status == model.QuestionStatusDeleted {
-			return apperr.ErrNotFound
+			return commentTarget{}, apperr.ErrNotFound
 		}
-		return nil
+		return commentTarget{authorID: q.UserID, questionID: q.ID}, nil
 	case model.TargetAnswer:
 		a, err := s.answers.GetByID(ctx, targetID)
 		if err != nil {
-			return err
+			return commentTarget{}, err
 		}
 		if a.Status != model.AnswerStatusPublished {
-			return apperr.With(apperr.ErrNotFound, "回答不存在或已删除")
+			return commentTarget{}, apperr.With(apperr.ErrNotFound, "回答不存在或已删除")
 		}
-		return nil
+		return commentTarget{authorID: a.UserID, questionID: a.QuestionID}, nil
 	default:
-		return apperr.With(apperr.ErrBadRequest, "未知的评论目标类型")
+		return commentTarget{}, apperr.With(apperr.ErrBadRequest, "未知的评论目标类型")
 	}
 }
 
@@ -61,7 +68,8 @@ func (s *CommentService) Create(ctx context.Context, userID uint64, targetType s
 	if err != nil {
 		return nil, err
 	}
-	if err := s.ensureTarget(ctx, targetType, targetID); err != nil {
+	target, err := s.ensureTarget(ctx, targetType, targetID)
+	if err != nil {
 		return nil, err
 	}
 	if err := s.spam.Check(ctx, userID, "comment"); err != nil {
@@ -80,6 +88,9 @@ func (s *CommentService) Create(ctx context.Context, userID uint64, targetType s
 	if err := s.comments.Create(ctx, c); err != nil {
 		return nil, err
 	}
+	if s.notifier != nil {
+		s.notifier.NotifyComment(ctx, target.authorID, userID, target.questionID, targetType, content)
+	}
 	authors, err := buildAuthors(ctx, s.users, c.UserID)
 	if err != nil {
 		return nil, err
@@ -91,7 +102,7 @@ func (s *CommentService) List(ctx context.Context, targetType string, targetID u
 	if targetType != model.TargetQuestion && targetType != model.TargetAnswer {
 		return nil, 0, apperr.With(apperr.ErrBadRequest, "未知的评论目标类型")
 	}
-	if err := s.ensureTarget(ctx, targetType, targetID); err != nil {
+	if _, err := s.ensureTarget(ctx, targetType, targetID); err != nil {
 		return nil, 0, err
 	}
 	list, total, err := s.comments.ListByTarget(ctx, targetType, targetID, pq.Page, pq.PageSize)

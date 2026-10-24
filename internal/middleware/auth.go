@@ -15,11 +15,17 @@ import (
 const (
 	ctxUserIDKey = "ctx_user_id"
 	ctxRoleKey   = "ctx_role"
+	ctxUserKey   = "ctx_user"
 )
 
-// Auth 解析 Bearer JWT。required=true 时 token 缺失/无效直接 401；
-// required=false 时仅在有有效 token 时注入用户信息（可选登录接口）。
-func Auth(secret string, required bool) gin.HandlerFunc {
+// UserLoader 必登录场景下按 ID 加载用户（用于封禁状态与最新角色校验）。
+type UserLoader func(c *gin.Context, id uint64) (any, error)
+
+// Auth 解析 Bearer JWT。
+// required=true 时：token 缺失/无效 → 401；用户不存在/已删除 → 401；被封禁 → 403，
+// 并从数据库读取最新角色（角色变更即时生效）。
+// required=false 时：仅在有有效 token 时注入用户信息（可选登录接口，不查库）。
+func Auth(secret string, required bool, loadUser UserLoader) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := ""
 		if h := c.GetHeader("Authorization"); strings.HasPrefix(h, "Bearer ") {
@@ -50,8 +56,35 @@ func Auth(secret string, required bool) gin.HandlerFunc {
 		}
 		c.Set(ctxUserIDKey, claims.UserID)
 		c.Set(ctxRoleKey, role)
+
+		if required && loadUser != nil {
+			u, lerr := loadUser(c, claims.UserID)
+			if lerr != nil {
+				httpx.Fail(c, apperr.With(apperr.ErrUnauthorized, "账号不存在或已被删除"))
+				c.Abort()
+				return
+			}
+			user := u.(*model.User)
+			if user.Status == model.UserStatusBanned {
+				httpx.Fail(c, apperr.With(apperr.ErrForbidden, "账号已被封禁"))
+				c.Abort()
+				return
+			}
+			c.Set(ctxRoleKey, user.Role)
+			c.Set(ctxUserKey, user)
+		}
 		c.Next()
 	}
+}
+
+// CurrentUser 取必登录路径上加载的用户（未经过 required 认证时返回 nil）。
+func CurrentUser(c *gin.Context) *model.User {
+	v, ok := c.Get(ctxUserKey)
+	if !ok {
+		return nil
+	}
+	u, _ := v.(*model.User)
+	return u
 }
 
 // UserID 取当前登录用户 ID（未登录返回 false）。

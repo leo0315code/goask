@@ -20,10 +20,11 @@ type QuestionService struct {
 	tags      TagRepo
 	votes     VoteRepo
 	spam      SpamChecker
+	notifier  Notifier
 }
 
-func NewQuestionService(questions QuestionRepo, answers AnswerRepo, users UserRepo, tags TagRepo, votes VoteRepo, spam SpamChecker) *QuestionService {
-	return &QuestionService{questions: questions, answers: answers, users: users, tags: tags, votes: votes, spam: spam}
+func NewQuestionService(questions QuestionRepo, answers AnswerRepo, users UserRepo, tags TagRepo, votes VoteRepo, spam SpamChecker, notifier Notifier) *QuestionService {
+	return &QuestionService{questions: questions, answers: answers, users: users, tags: tags, votes: votes, spam: spam, notifier: notifier}
 }
 
 func validateTitleContent(title, content string) (string, string, error) {
@@ -242,5 +243,11 @@ func (s *QuestionService) AcceptAnswer(ctx context.Context, userID, questionID, 
 	if a.QuestionID != questionID || a.Status != model.AnswerStatusPublished {
 		return apperr.With(apperr.ErrNotFound, "回答不存在或不属于该问题")
 	}
-	return s.questions.AcceptAnswer(ctx, questionID, answerID)
+	if err := s.questions.AcceptAnswer(ctx, questionID, answerID); err != nil {
+		return err
+	}
+	if s.notifier != nil {
+		s.notifier.NotifyAccepted(ctx, a.UserID, userID, answerID, questionID, q.Title)
+	}
+	return nil
 }

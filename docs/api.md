@@ -110,6 +110,33 @@ Authorization: Bearer <token>
 
 公开主页：资料 + 计数（不含 email）。
 
+### PUT `/api/v1/users/me/password`　（需登录）
+
+```json
+{"old_password": "secret123", "new_password": "newpass456"}
+```
+
+校验原密码；新密码 8–72 字节。
+
+## 4.5 通知模块（需登录）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/v1/notifications?unread=1&page=` | 通知列表（带 `unread_count`），触发人昵称与问题标题联出 |
+| POST | `/api/v1/notifications/:id/read` | 单条已读 |
+| POST | `/api/v1/notifications/read-all` | 全部已读 |
+
+触发时机：有人回答/评论你的内容、你的回答被采纳、有人赞同你的问题或回答（撤销与反对不通知，自己操作自己不通知）。
+
+## 4.6 管理端（仅管理员）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/v1/admin/users?q=&page=` | 用户列表（用户名/邮箱模糊搜索） |
+| PUT | `/api/v1/admin/users/:id/status` | `{"status":"banned"|"active"}` 封禁/解封 |
+
+规则：不能封禁自己和管理员账号；**封禁后该用户已签发的 token 立即失效**（必登录接口每次从数据库校验状态与最新角色）。
+
 ## 5. 问题模块
 
 ### GET `/api/v1/questions`

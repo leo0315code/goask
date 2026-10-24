@@ -11,6 +11,7 @@ import Comments from '../components/Comments.vue'
 import AuthorCard from '../components/AuthorCard.vue'
 import RelatedQuestions from '../components/RelatedQuestions.vue'
 import HotTagsCard from '../components/HotTagsCard.vue'
+import MarkdownContent from '../components/MarkdownContent.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -181,7 +182,7 @@ onMounted(fetchAll)
       </div>
 
       <template v-if="!editingQuestion">
-        <div class="content">{{ q.content }}</div>
+        <MarkdownContent class="content" :content="q.content" />
       </template>
       <template v-else>
         <div class="edit-form">
@@ -218,7 +219,7 @@ onMounted(fetchAll)
     <div v-for="a in answers" :key="a.id" class="card answer" :class="{ accepted: a.is_accepted }">
       <div v-if="a.is_accepted" class="accept-badge">✓ 已采纳的回答</div>
       <template v-if="editingAnswerId !== a.id">
-        <div class="content">{{ a.content }}</div>
+        <MarkdownContent class="content" :content="a.content" />
       </template>
       <template v-else>
         <div class="edit-form">
