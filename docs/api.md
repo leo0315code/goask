@@ -199,7 +199,9 @@ Query：`page`、`page_size`、`sort`（`latest` 默认 / `hot` / `unanswered`�
 ### 评论
 
 - `GET /api/v1/questions/:id/comments`　分页
-- `POST /api/v1/questions/:id/comments`　（需登录）`{"content": "..."}` ≤1000 字符
+- `POST /api/v1/questions/:id/comments`　（需登录）`{"content": "...", "parent_id": 0}` ≤1000 字符
+
+楼中楼：请求可带 `parent_id`（根评论 ID）发表回复，服务端拍平到根（只允许一层嵌套）；回复通知被回复的评论作者。列表接口返回树形结构：根评论分页（旧→新），每条根评论带 `replies[]` 与 `reply_to_name`。
 
 ## 6. 回答模块
 
