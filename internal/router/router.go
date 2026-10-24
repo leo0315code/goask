@@ -57,9 +57,14 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		_ = r.SetTrustedProxies(nil)
 	}
 
-	// 请求体上限 1MB
+	// 请求体上限：普通接口 1MB；图片上传按 MAX_UPLOAD_MB 放宽
 	r.Use(func(c *gin.Context) {
-		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20)
+		limit := int64(1 << 20)
+		if strings.HasPrefix(c.Request.URL.Path, "/api/v1/upload") {
+			// 余量放大让业务层的「图片不能超过 NMB」先于传输层截断触发
+			limit = cfg.MaxUploadSize + 8<<20
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
 		c.Next()
 	})
 	r.Use(
