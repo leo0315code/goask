@@ -1,0 +1,19 @@
+# 环境与密钥
+.env
+
+# 构建产物
+bin/
+dist/
+*.test
+*.out
+
+# 日志
+*.log
+
+# IDE / 系统
+.idea/
+.vscode/
+.DS_Store
+
+# Go
+vendor/

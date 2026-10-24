@@ -1,0 +1,54 @@
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-goask_root_pw}
+      MYSQL_DATABASE: ${DB_NAME:-goask}
+      MYSQL_USER: ${DB_USER:-goask}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-goask_pw}
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --ngram_token_size=2
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "${MYSQL_PORT:-33060}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_PASSWORD:-goask_root_pw}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-release}
+      PORT: ${PORT:-8080}
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-goask}
+      DB_PASSWORD: ${DB_PASSWORD:-goask_pw}
+      DB_NAME: ${DB_NAME:-goask}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 必须在 .env 中设置}
+      JWT_EXPIRE: ${JWT_EXPIRE:-72h}
+      BCRYPT_COST: ${BCRYPT_COST:-12}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      RATE_LIMIT_GLOBAL_RPM: ${RATE_LIMIT_GLOBAL_RPM:-120}
+      RATE_LIMIT_AUTH_RPM: ${RATE_LIMIT_AUTH_RPM:-10}
+      MIGRATE_ON_START: ${MIGRATE_ON_START:-true}
+      SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+    ports:
+      - "${APP_PORT:-8080}:8080"
+
+volumes:
+  mysql_data:
