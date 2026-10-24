@@ -10,7 +10,6 @@ defineProps({
 <template>
   <div class="card qitem">
     <div class="stats">
-      <div class="stat"><b>{{ q.upvote_count }}</b>赞同</div>
       <div class="stat answers" :class="{ none: q.answer_count === 0 }"><b>{{ q.answer_count }}</b>回答</div>
       <div class="stat views"><b>{{ q.view_count }}</b>浏览</div>
     </div>
@@ -18,6 +17,7 @@ defineProps({
       <router-link class="title" :to="'/q/' + q.id">{{ q.title }}</router-link>
       <p class="excerpt">{{ excerpt(q.content) }}</p>
       <div class="meta">
+        <span class="meta-votes">{{ q.upvote_count }} 赞同</span>
         <router-link v-for="t in q.tags" :key="t.id" class="tag" :to="{ path: '/', query: { tag: t.name } }">
           {{ t.name }}
         </router-link>
