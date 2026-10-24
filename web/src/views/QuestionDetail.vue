@@ -8,6 +8,9 @@ import { toast } from '../toast'
 import { parseTags, timeAgo } from '../utils'
 import VoteBox from '../components/VoteBox.vue'
 import Comments from '../components/Comments.vue'
+import AuthorCard from '../components/AuthorCard.vue'
+import RelatedQuestions from '../components/RelatedQuestions.vue'
+import HotTagsCard from '../components/HotTagsCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -161,7 +164,8 @@ onMounted(fetchAll)
 <template>
   <div v-if="loading" class="loading">加载中…</div>
   <div v-else-if="notFound" class="card empty">问题不存在或已被删除 <router-link to="/">返回首页</router-link></div>
-  <template v-else>
+  <div v-else class="layout">
+    <div>
     <div class="card q-head">
       <h1>{{ q.title }}</h1>
       <div class="meta">
@@ -268,5 +272,12 @@ onMounted(fetchAll)
       <router-link to="/login">登录</router-link> 后可以回答该问题
     </div>
     <div v-else-if="q.status === 'closed'" class="card empty">该问题已关闭，不能再回答</div>
-  </template>
+    </div>
+
+    <aside class="sidebar">
+      <AuthorCard :username="q.author.username" />
+      <RelatedQuestions :question="q" />
+      <HotTagsCard />
+    </aside>
+  </div>
 </template>

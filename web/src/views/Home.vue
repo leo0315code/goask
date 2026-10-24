@@ -1,9 +1,11 @@
 <script setup>
-// 首页：问题列表（最新 / 热门 / 未回答）+ 标签筛选 + 搜索 + 分页 + 热门标签侧栏
+// 首页：左栏问题列表（最新 / 热门 / 未回答 + 标签筛选 + 搜索 + 分页），右栏热门问题与标签
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, pageParams } from '../api'
 import QuestionItem from '../components/QuestionItem.vue'
+import HotQuestions from '../components/HotQuestions.vue'
+import HotTagsCard from '../components/HotTagsCard.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,7 +19,6 @@ const sorts = [
 const list = ref([])
 const total = ref(0)
 const loading = ref(true)
-const hotTags = ref([])
 
 const sort = computed(() => route.query.sort || 'latest')
 const keyword = computed(() => route.query.q || '')
@@ -43,14 +44,6 @@ async function fetchList() {
   }
 }
 
-async function fetchTags() {
-  try {
-    hotTags.value = (await api('GET', '/tags?limit=12')) || []
-  } catch {
-    hotTags.value = []
-  }
-}
-
 function go(change) {
   const query = {}
   if (sort.value !== 'latest') query.sort = sort.value
@@ -72,7 +65,6 @@ function go(change) {
 }
 
 watch(() => route.query, fetchList, { immediate: true })
-fetchTags()
 </script>
 
 <template>
@@ -106,14 +98,8 @@ fetchTags()
     </div>
 
     <aside class="sidebar">
-      <div class="card">
-        <h3>热门标签</h3>
-        <router-link
-          v-for="t in hotTags" :key="t.id"
-          class="tag" :to="{ path: '/', query: { tag: t.name } }"
-        >{{ t.name }} × {{ t.question_count }}</router-link>
-        <div v-if="hotTags.length === 0" class="hint">暂无标签</div>
-      </div>
+      <HotQuestions />
+      <HotTagsCard />
     </aside>
   </div>
 </template>

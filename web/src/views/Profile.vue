@@ -4,6 +4,8 @@ import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { api } from '../api'
 import QuestionItem from '../components/QuestionItem.vue'
+import HotQuestions from '../components/HotQuestions.vue'
+import HotTagsCard from '../components/HotTagsCard.vue'
 
 const route = useRoute()
 const username = route.params.username
@@ -31,7 +33,8 @@ onMounted(async () => {
 <template>
   <div v-if="loading" class="loading">加载中…</div>
   <div v-else-if="notFound" class="card empty">用户不存在</div>
-  <template v-else>
+  <div v-else class="layout">
+    <div>
     <div class="card profile-head">
       <div class="avatar">{{ user.username[0].toUpperCase() }}</div>
       <div>
@@ -51,5 +54,11 @@ onMounted(async () => {
     <div class="section-title">{{ total }} 个提问</div>
     <div v-if="questions.length === 0" class="card empty">还没有提问</div>
     <QuestionItem v-for="q in questions" :key="q.id" :q="q" />
-  </template>
+    </div>
+
+    <aside class="sidebar">
+      <HotQuestions />
+      <HotTagsCard />
+    </aside>
+  </div>
 </template>
