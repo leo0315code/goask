@@ -180,36 +180,39 @@ onMounted(fetchAll)
         <span>{{ timeAgo(q.created_at) }} 提问 · {{ q.view_count }} 次浏览</span>
       </div>
 
-      <template v-if="!editingQuestion">
-        <div class="content">{{ q.content }}</div>
-      </template>
-      <template v-else>
-        <div class="edit-form">
-          <input v-model="editQ.title" maxlength="150" />
-          <textarea v-model="editQ.content"></textarea>
-          <input v-model="editQ.tags" placeholder="标签，逗号分隔" />
-          <div class="actions">
-            <button class="btn primary small" @click="saveQuestion">保存</button>
-            <button class="btn small" @click="editingQuestion = false">取消</button>
-          </div>
-        </div>
-      </template>
-
-      <div class="vote-cell">
+      <div class="q-body">
         <VoteBox
           target-type="question" :target-id="q.id"
           :upvotes="q.upvote_count" :downvotes="q.downvote_count" :value="q.viewer_vote"
         />
-        <div class="owner-actions">
-          <template v-if="isAuthor && q.status === 'open'">
-            <button v-if="!editingQuestion" class="btn small" @click="startEditQuestion">编辑</button>
-            <button class="btn small" @click="closeQuestion">关闭</button>
+        <div class="q-main">
+          <template v-if="!editingQuestion">
+            <div class="content">{{ q.content }}</div>
           </template>
-          <button v-if="canManage" class="btn small danger" @click="removeQuestion">删除</button>
+          <template v-else>
+            <div class="edit-form">
+              <input v-model="editQ.title" maxlength="150" />
+              <textarea v-model="editQ.content"></textarea>
+              <input v-model="editQ.tags" placeholder="标签，逗号分隔" />
+              <div class="actions">
+                <button class="btn primary small" @click="saveQuestion">保存</button>
+                <button class="btn small" @click="editingQuestion = false">取消</button>
+              </div>
+            </div>
+          </template>
+
+          <div class="meta body-meta">
+            <span class="spacer"></span>
+            <template v-if="isAuthor && q.status === 'open' && !editingQuestion">
+              <button class="btn small" @click="startEditQuestion">编辑</button>
+              <button class="btn small" @click="closeQuestion">关闭</button>
+            </template>
+            <button v-if="canManage" class="btn small danger" @click="removeQuestion">删除</button>
+          </div>
+
+          <Comments target-type="question" :target-id="q.id" />
         </div>
       </div>
-
-      <Comments target-type="question" :target-id="q.id" />
     </div>
 
     <div class="section-title">{{ answers.length }} 个回答</div>
@@ -217,10 +220,12 @@ onMounted(fetchAll)
     <div v-if="answers.length === 0" class="card empty">还没有回答，来抢沙发 →</div>
 
     <div v-for="a in answers" :key="a.id" class="card answer" :class="{ accepted: a.is_accepted }">
-      <div>
-        <div class="accept-badge" v-if="a.is_accepted">✓ 已采纳</div>
-      </div>
+      <VoteBox
+        target-type="answer" :target-id="a.id"
+        :upvotes="a.upvote_count" :downvotes="a.downvote_count" :value="viewerVotes[a.id] || 0"
+      />
       <div class="main">
+        <div v-if="a.is_accepted" class="accept-badge">✓ 已采纳的回答</div>
         <template v-if="editingAnswerId !== a.id">
           <div class="content">{{ a.content }}</div>
         </template>
@@ -234,29 +239,22 @@ onMounted(fetchAll)
           </div>
         </template>
 
-        <div class="vote-cell">
-          <VoteBox
-            target-type="answer" :target-id="a.id"
-            :upvotes="a.upvote_count" :downvotes="a.downvote_count" :value="viewerVotes[a.id] || 0"
-          />
-          <div class="owner-actions">
-            <button
-              v-if="isAuthor && !a.is_accepted"
-              class="btn small accept-btn" @click="accept(a)"
-            >采纳</button>
-            <template v-if="store.me && store.me.id === a.user_id">
-              <button v-if="editingAnswerId !== a.id" class="btn small" @click="startEditAnswer(a)">编辑</button>
-            </template>
-            <button
-              v-if="store.me && (store.me.id === a.user_id || store.me.role === 'admin')"
-              class="btn small danger" @click="removeAnswer(a)"
-            >删除</button>
-          </div>
-        </div>
-
         <div class="meta answer-meta">
           <router-link :to="'/u/' + a.author.username">{{ a.author.username }}</router-link>
           <span>{{ timeAgo(a.created_at) }} 回答</span>
+          <span class="spacer"></span>
+          <button
+            v-if="isAuthor && !a.is_accepted"
+            class="btn small accept-btn" @click="accept(a)"
+          >采纳</button>
+          <button
+            v-if="store.me && store.me.id === a.user_id && editingAnswerId !== a.id"
+            class="btn small" @click="startEditAnswer(a)"
+          >编辑</button>
+          <button
+            v-if="store.me && (store.me.id === a.user_id || store.me.role === 'admin')"
+            class="btn small danger" @click="removeAnswer(a)"
+          >删除</button>
         </div>
 
         <Comments target-type="answer" :target-id="a.id" />
