@@ -432,3 +432,39 @@ a:hover { color: var(--primary-dark); }
   min-width: 16px; height: 16px; line-height: 16px; text-align: center;
   border-radius: 999px; padding: 0 4px;
 }
+
+/* ---- 提问页 ---- */
+.ask-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 18px; align-items: start; }
+@media (max-width: 820px) { .ask-wrap { grid-template-columns: 1fr; } }
+.ask-main { padding: 24px 28px; }
+.ask-main h1 { margin: 0 0 4px; font-size: 22px; }
+.ask-sub { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+.f-label {
+  display: flex; justify-content: space-between; align-items: center;
+  margin: 18px 0 6px; font-size: 13px; font-weight: 600; color: var(--text);
+}
+.f-label:first-of-type { margin-top: 6px; }
+.f-count, .f-hint { color: var(--muted); font-weight: 400; font-size: 12px; }
+.f-count.over { color: var(--red); }
+.f-markdown { color: var(--primary); font-weight: 400; font-size: 12px; }
+.f-input {
+  width: 100%; padding: 11px 14px; font-size: 14px;
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg); color: var(--text); font-family: inherit; outline: none;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.f-input:focus {
+  border-color: var(--primary); background: var(--card);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+}
+.title-input { font-size: 15px; }
+.content-input { min-height: 240px; resize: none; line-height: 1.7; }
+.f-err-hint { color: var(--orange); font-size: 12px; margin-top: 6px; }
+.tag-preview { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.tag-preview .tag { font-size: 13px; padding: 3px 12px; }
+.ask-side h3 { font-size: 14px; margin: 0 0 10px; color: var(--text); }
+.ask-side ul { margin: 0; padding-left: 18px; }
+.ask-side li { font-size: 13px; color: var(--muted); margin-bottom: 9px; line-height: 1.5; }
+.ask-side .btn, .ask-main .actions { margin-top: 20px; }
+.ask-main .actions { display: flex; gap: 10px; }
+.ask-main .content-input { resize: none; }
