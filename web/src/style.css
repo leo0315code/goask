@@ -468,3 +468,30 @@ a:hover { color: var(--primary-dark); }
 .ask-side .btn, .ask-main .actions { margin-top: 20px; }
 .ask-main .actions { display: flex; gap: 10px; }
 .ask-main .content-input { resize: none; }
+
+/* 标签输入器 */
+.tag-input-box {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 6px 10px; min-height: 48px; cursor: text;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--bg);
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.tag-input-box:focus-within {
+  border-color: var(--primary); background: var(--card);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+}
+.tag-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--tag-bg); color: var(--primary);
+  padding: 5px 6px 5px 12px; border-radius: 999px; font-size: 13px; line-height: 1;
+}
+.pill-x {
+  border: none; background: none; cursor: pointer;
+  color: var(--primary); opacity: .55; font-size: 15px; line-height: 1; padding: 0 3px;
+}
+.pill-x:hover { opacity: 1; }
+.tag-input-el {
+  flex: 1; min-width: 140px; border: none; outline: none; background: none;
+  color: var(--text); font-size: 14px; padding: 8px 0; font-family: inherit;
+}
+.tag-input-el::placeholder { color: var(--muted); }
