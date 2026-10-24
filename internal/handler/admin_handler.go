@@ -14,10 +14,52 @@ import (
 
 type AdminHandler struct {
 	users *service.UserService
+	admin *service.AdminService
 }
 
-func NewAdminHandler(users *service.UserService) *AdminHandler {
-	return &AdminHandler{users: users}
+func NewAdminHandler(users *service.UserService, admin *service.AdminService) *AdminHandler {
+	return &AdminHandler{users: users, admin: admin}
+}
+
+// Stats 概览统计。
+func (h *AdminHandler) Stats(c *gin.Context) {
+	if _, ok := requireAdmin(c); !ok {
+		return
+	}
+	stats, err := h.admin.Stats(c.Request.Context())
+	if err != nil {
+		httpx.Fail(c, err)
+		return
+	}
+	httpx.OK(c, stats)
+}
+
+// Questions 问题管理列表：?q=&status=all|open|closed|deleted&page=
+func (h *AdminHandler) Questions(c *gin.Context) {
+	if _, ok := requireAdmin(c); !ok {
+		return
+	}
+	pq := pageQuery(c)
+	list, total, err := h.admin.Questions(c.Request.Context(), c.Query("q"), c.DefaultQuery("status", "all"), pq.Page, pq.PageSize)
+	if err != nil {
+		httpx.Fail(c, err)
+		return
+	}
+	pageOK(c, list, total, pq)
+}
+
+// Comments 评论管理列表：?q=&page=
+func (h *AdminHandler) Comments(c *gin.Context) {
+	if _, ok := requireAdmin(c); !ok {
+		return
+	}
+	pq := pageQuery(c)
+	list, total, err := h.admin.Comments(c.Request.Context(), c.Query("q"), pq.Page, pq.PageSize)
+	if err != nil {
+		httpx.Fail(c, err)
+		return
+	}
+	pageOK(c, list, total, pq)
 }
 
 // requireAdmin 校验当前用户为管理员（required 认证路径已从数据库加载用户）。

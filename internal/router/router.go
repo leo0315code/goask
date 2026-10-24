@@ -32,6 +32,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	captchaStore := captcha.New(5 * time.Minute)
 	authSvc := service.NewAuthService(repos.Users, cfg, captchaStore)
 	userSvc := service.NewUserService(repos.Users, cfg.BcryptCost)
+	adminSvc := service.NewAdminService(repos.Admin)
 	questionSvc := service.NewQuestionService(repos.Questions, repos.Answers, repos.Users, repos.Tags, repos.Votes, spamGuard, notificationSvc)
 	answerSvc := service.NewAnswerService(repos.Answers, repos.Questions, repos.Users, spamGuard, notificationSvc)
 	commentSvc := service.NewCommentService(repos.Comments, repos.Questions, repos.Answers, repos.Users, spamGuard, notificationSvc)
@@ -87,7 +88,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	voteH := handler.NewVoteHandler(voteSvc)
 	tagH := handler.NewTagHandler(tagSvc)
 	notificationH := handler.NewNotificationHandler(notificationSvc, notificationHub, cfg.JWTSecret, loadUser)
-	adminH := handler.NewAdminHandler(userSvc)
+	adminH := handler.NewAdminHandler(userSvc, adminSvc)
 
 	v1 := r.Group("/api/v1")
 	v1.Use(authOptional)
@@ -108,8 +109,14 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	v1.POST("/notifications/:id/read", authRequired, notificationH.Read)
 
 	// 管理端
+	v1.GET("/admin/stats", authRequired, adminH.Stats)
 	v1.GET("/admin/users", authRequired, adminH.ListUsers)
 	v1.PUT("/admin/users/:id/status", authRequired, adminH.SetUserStatus)
+	v1.GET("/admin/questions", authRequired, adminH.Questions)
+	v1.GET("/admin/comments", authRequired, adminH.Comments)
+
+	// 评论删除（作者本人或管理员）
+	v1.DELETE("/comments/:id", authRequired, commentH.Delete)
 
 	// 问题与检索
 	v1.GET("/questions", questionH.List)

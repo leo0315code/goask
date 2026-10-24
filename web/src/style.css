@@ -311,6 +311,24 @@ a:hover { color: var(--primary-dark); }
 .admin-table tr:last-child td { border-bottom: none; }
 .muted-td { color: var(--muted); }
 .tag.banned { background: rgba(220, 38, 38, .12); color: var(--red); }
+.title-td { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-select {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 14px; background: var(--bg); color: var(--text);
+}
+
+/* 概览统计卡片 */
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 700px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+.stat-card { text-align: center; padding: 20px 12px; }
+.stat-card b { display: block; font-size: 26px; color: var(--primary); }
+.stat-card span { font-size: 13px; color: var(--muted); }
+
+/* 评论里的 Markdown 渲染 */
+.comment .comment-md { display: inline; }
+.comment .comment-md p { display: inline; margin: 0; }
+.comment .comment-md pre { display: block; margin: 4px 0; }
+.c-del { padding: 1px 8px; font-size: 12px; }
 
 /* ---- 个人主页 ---- */
 .profile-head { display: flex; gap: 18px; align-items: center; }

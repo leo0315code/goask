@@ -142,8 +142,15 @@ EventSource 无法携带请求头，JWT 通过查询参数传递；25s 心跳保
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
+| GET | `/api/v1/admin/stats` | 概览统计（用户/问题/回答/评论/投票总数 + 今日新增） |
 | GET | `/api/v1/admin/users?q=&page=` | 用户列表（用户名/邮箱模糊搜索） |
 | PUT | `/api/v1/admin/users/:id/status` | `{"status":"banned"|"active"}` 封禁/解封 |
+| GET | `/api/v1/admin/questions?q=&status=all\|open\|closed\|deleted&page=` | 问题管理列表（含已删除） |
+| GET | `/api/v1/admin/comments?q=&page=` | 评论管理列表（含已删除） |
+
+### DELETE `/api/v1/comments/:id`　（需登录）
+
+删除评论（软删除）：作者本人或管理员。
 
 规则：不能封禁自己和管理员账号；**封禁后该用户已签发的 token 立即失效**（必登录接口每次从数据库校验状态与最新角色）。
 

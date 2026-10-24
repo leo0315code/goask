@@ -27,6 +27,7 @@ type Repos struct {
 	Tags          *TagRepo
 	Spam          *SpamRepo
 	Notifications *NotificationRepo
+	Admin         *AdminRepo
 }
 
 func NewRepos(db *gorm.DB) *Repos {
@@ -39,6 +40,7 @@ func NewRepos(db *gorm.DB) *Repos {
 		Tags:          &TagRepo{db: db},
 		Spam:          &SpamRepo{db: db},
 		Notifications: &NotificationRepo{db: db},
+		Admin:         &AdminRepo{db: db},
 	}
 }
 

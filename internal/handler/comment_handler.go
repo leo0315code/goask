@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gin-gonic/gin"
 
+	"github.com/leo0315code/goask/internal/middleware"
 	"github.com/leo0315code/goask/internal/model"
 	"github.com/leo0315code/goask/internal/pkg/httpx"
 	"github.com/leo0315code/goask/internal/service"
@@ -69,4 +70,21 @@ func (h *CommentHandler) create(c *gin.Context, targetType string) {
 		return
 	}
 	httpx.OK(c, view)
+}
+
+// Delete 删除评论（作者本人或管理员）。
+func (h *CommentHandler) Delete(c *gin.Context) {
+	uid, ok := currentUserID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	if err := h.comments.Delete(c.Request.Context(), uid, id, middleware.IsAdmin(c)); err != nil {
+		httpx.Fail(c, err)
+		return
+	}
+	httpx.OK(c, nil)
 }

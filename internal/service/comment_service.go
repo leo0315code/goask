@@ -98,6 +98,21 @@ func (s *CommentService) Create(ctx context.Context, userID uint64, targetType s
 	return &CommentView{Comment: *c, Author: authors[c.UserID]}, nil
 }
 
+// Delete 删除评论（作者本人或管理员），软删除。
+func (s *CommentService) Delete(ctx context.Context, userID, commentID uint64, isAdmin bool) error {
+	c, err := s.comments.GetByID(ctx, commentID)
+	if err != nil {
+		return err
+	}
+	if c.Status != model.CommentStatusPublished {
+		return apperr.With(apperr.ErrNotFound, "评论不存在或已删除")
+	}
+	if c.UserID != userID && !isAdmin {
+		return apperr.With(apperr.ErrForbidden, "仅作者或管理员可删除评论")
+	}
+	return s.comments.Delete(ctx, commentID)
+}
+
 func (s *CommentService) List(ctx context.Context, targetType string, targetID uint64, pq httpx.PageQuery) ([]CommentView, int64, error) {
 	if targetType != model.TargetQuestion && targetType != model.TargetAnswer {
 		return nil, 0, apperr.With(apperr.ErrBadRequest, "未知的评论目标类型")

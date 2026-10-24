@@ -51,6 +51,8 @@ type VoteRepo interface {
 
 type CommentRepo interface {
 	Create(ctx context.Context, c *model.Comment) error
+	GetByID(ctx context.Context, id uint64) (*model.Comment, error)
+	Delete(ctx context.Context, id uint64) error
 	ListByTarget(ctx context.Context, targetType string, targetID uint64, page, pageSize int) ([]model.Comment, int64, error)
 }
 
