@@ -2,6 +2,8 @@
 // Markdown 编辑器：工具栏（选区包裹/行前缀/块插入）+ 编辑/预览双模式 + 快捷键
 import { computed, nextTick, ref } from 'vue'
 import MarkdownContent from './MarkdownContent.vue'
+import { upload } from '../api'
+import { toast } from '../toast'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -12,6 +14,59 @@ const emit = defineEmits(['update:modelValue'])
 
 const mode = ref('edit') // edit | preview
 const el = ref(null)
+const fileEl = ref(null)
+const uploading = ref(false)
+
+function pickImage() {
+  fileEl.value && fileEl.value.click()
+}
+
+// 上传文件并在光标处插入 Markdown 图片语法
+async function uploadFile(file) {
+  if (!file.type.startsWith('image/')) {
+    toast('仅支持图片文件')
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast('图片不能超过 5MB')
+    return
+  }
+  uploading.value = true
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const data = await upload('/upload/image', fd)
+    insertBlock(`![${file.name}](${data.url})`)
+  } catch (e) {
+    toast(e.message)
+  } finally {
+    uploading.value = false
+  }
+}
+
+function onFileChange(e) {
+  const f = e.target.files && e.target.files[0]
+  if (f) uploadFile(f)
+  e.target.value = '' // 允许重复选择同一文件
+}
+
+// 粘贴图片直接上传
+function onPaste(e) {
+  const files = e.clipboardData && e.clipboardData.files
+  if (files && files.length && files[0].type.startsWith('image/')) {
+    e.preventDefault()
+    uploadFile(files[0])
+  }
+}
+
+// 拖拽图片到编辑器上传
+function onDrop(e) {
+  const files = e.dataTransfer && e.dataTransfer.files
+  if (files && files.length && files[0].type.startsWith('image/')) {
+    e.preventDefault()
+    uploadFile(files[0])
+  }
+}
 
 const styleHeight = computed(() => ({ minHeight: props.minHeight + 'px' }))
 
@@ -114,6 +169,11 @@ function onKeydown(e) {
         type="button" class="md-btn" :class="t.cls"
         :title="t.title" @click="apply(t.key)"
       >{{ t.label }}</button>
+      <button
+        type="button" class="md-btn" title="上传图片"
+        :disabled="uploading" @click="pickImage"
+      >{{ uploading ? '上传中…' : '🖼 图片' }}</button>
+      <input ref="fileEl" type="file" accept="image/*" hidden @change="onFileChange" />
       <div class="md-mode">
         <button type="button" :class="{ active: mode === 'edit' }" @click="mode = 'edit'">编辑</button>
         <button type="button" :class="{ active: mode === 'preview' }" @click="mode = 'preview'">预览</button>
@@ -125,6 +185,7 @@ function onKeydown(e) {
       ref="el" class="md-textarea" :style="styleHeight"
       :value="modelValue" :placeholder="placeholder"
       @input="onInput" @keydown="onKeydown"
+      @paste="onPaste" @drop="onDrop" @dragover.prevent
     ></textarea>
     <div v-show="mode === 'preview'" class="md-preview" :style="styleHeight">
       <MarkdownContent v-if="modelValue" :content="modelValue" />

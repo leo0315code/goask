@@ -69,6 +69,9 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		middleware.RateLimit(cfg.RateLimitGlobal),
 	)
 
+	// 用户上传的图片（随机文件名，目录见 UPLOAD_DIR）
+	r.Static("/uploads", cfg.UploadDir)
+
 	r.GET("/healthz", func(c *gin.Context) {
 		httpx.OK(c, gin.H{"status": "ok"})
 	})
@@ -89,6 +92,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	tagH := handler.NewTagHandler(tagSvc)
 	notificationH := handler.NewNotificationHandler(notificationSvc, notificationHub, cfg.JWTSecret, loadUser)
 	adminH := handler.NewAdminHandler(userSvc, adminSvc)
+	uploadH := handler.NewUploadHandler(cfg.UploadDir, cfg.MaxUploadSize)
 
 	v1 := r.Group("/api/v1")
 	v1.Use(authOptional)
@@ -107,6 +111,9 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	v1.GET("/notifications/stream", notificationH.Stream) // SSE：token 走查询参数
 	v1.POST("/notifications/read-all", authRequired, notificationH.ReadAll)
 	v1.POST("/notifications/:id/read", authRequired, notificationH.Read)
+
+	// 图片上传
+	v1.POST("/upload/image", authRequired, uploadH.Image)
 
 	// 管理端
 	v1.GET("/admin/stats", authRequired, adminH.Stats)

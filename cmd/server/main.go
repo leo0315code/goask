@@ -31,6 +31,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// 确保上传目录存在
+	if err := os.MkdirAll(cfg.UploadDir, 0o755); err != nil {
+		fmt.Fprintln(os.Stderr, "创建上传目录失败:", err)
+		os.Exit(1)
+	}
+
 	level := slog.LevelInfo
 	if !cfg.IsProd() {
 		level = slog.LevelDebug

@@ -26,6 +26,9 @@ type Config struct {
 	RateLimitGlobal int // 次/分/IP
 	RateLimitAuth   int // 注册/登录 次/分/IP
 
+	UploadDir     string // 图片上传存储目录
+	MaxUploadSize int64  // 单张图片上限（字节）
+
 	RegisterEnabled        bool   // 是否开放注册
 	RegisterInviteCode     string // 非空时注册必须携带邀请码
 	RegisterMaxPerIPPerDay int    // 同 IP 每日注册上限（0 = 不限）
@@ -78,6 +81,9 @@ func Load() (*Config, error) {
 		TrustedProxies:  splitList(getEnv("TRUSTED_PROXIES", "")),
 		RateLimitGlobal: getEnvInt("RATE_LIMIT_GLOBAL_RPM", 120),
 		RateLimitAuth:   getEnvInt("RATE_LIMIT_AUTH_RPM", 10),
+
+		UploadDir:     getEnv("UPLOAD_DIR", "uploads"),
+		MaxUploadSize: int64(getEnvInt("MAX_UPLOAD_MB", 5)) * 1024 * 1024,
 
 		RegisterEnabled:        getEnvBool("REGISTER_ENABLED", true),
 		RegisterInviteCode:     os.Getenv("REGISTER_INVITE_CODE"),
