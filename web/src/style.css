@@ -231,7 +231,14 @@ a:hover { color: var(--primary-dark); }
 
 /* ---- 评论 ---- */
 .comments { margin: 16px 0 0 0; border-top: 1px solid var(--border); padding-top: 14px; }
-.comments-head { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.comments-head { display: flex; align-items: center; justify-content: space-between; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.add-cmt {
+  border: none; background: none; cursor: pointer;
+  font-size: 13px; font-weight: 400; color: var(--muted);
+  padding: 4px 8px; border-radius: 6px;
+  transition: color .15s, background .15s;
+}
+.add-cmt:hover { color: var(--primary); background: var(--vote-pill-bg); }
 .comment { display: flex; gap: 12px; padding: 12px 0; }
 .comment + .comment { border-top: 1px dashed var(--border); }
 .avatar.xs { width: 36px; height: 36px; font-size: 15px; }

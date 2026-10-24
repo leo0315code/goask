@@ -17,8 +17,17 @@ const total = ref(0)
 const content = ref('')
 const submitting = ref(false)
 const inputEl = ref(null)
+const showForm = ref(false) // 评论框默认收起，点击「添加评论」展开
 
 const canManage = (c) => store.me && (store.me.id === c.user_id || store.me.role === 'admin')
+
+async function toggleForm() {
+  showForm.value = !showForm.value
+  if (showForm.value) {
+    await nextTick()
+    inputEl.value && inputEl.value.focus()
+  }
+}
 
 // 输入框随内容自动长高（上限 200px）
 watch(content, async () => {
@@ -67,7 +76,10 @@ onMounted(fetchList)
 
 <template>
   <div class="comments">
-    <div class="comments-head">{{ total }} 条评论</div>
+    <div class="comments-head">
+      <span>{{ total }} 条评论</span>
+      <button v-if="store.me" class="add-cmt" @click="toggleForm">💬 添加评论</button>
+    </div>
 
     <div v-for="c in list" :key="c.id" class="comment">
       <router-link class="avatar xs" :to="'/u/' + c.author.username">{{ c.author.username[0].toUpperCase() }}</router-link>
@@ -83,7 +95,7 @@ onMounted(fetchList)
     </div>
     <div v-if="list.length === 0" class="hint">还没有评论，来抢沙发</div>
 
-    <div v-if="store.me" class="comment-form">
+    <div v-if="store.me && showForm" class="comment-form">
       <div class="avatar xs">{{ store.me.username[0].toUpperCase() }}</div>
       <div class="cf-main">
         <textarea
@@ -98,6 +110,8 @@ onMounted(fetchList)
         </div>
       </div>
     </div>
-    <div v-else class="hint comment-form-hint">登录后可评论</div>
+    <div v-else-if="!store.me" class="hint comment-form-hint">
+      <router-link to="/login">登录</router-link> 后可评论
+    </div>
   </div>
 </template>
