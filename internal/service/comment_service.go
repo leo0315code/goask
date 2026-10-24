@@ -58,6 +58,9 @@ func (s *CommentService) ensureTarget(ctx context.Context, targetType string, ta
 		if q.Status == model.QuestionStatusDeleted {
 			return commentTarget{}, apperr.ErrNotFound
 		}
+		if q.Status == model.QuestionStatusClosed {
+			return commentTarget{}, apperr.With(apperr.ErrValidation, "问题已关闭，评论已锁定")
+		}
 		return commentTarget{authorID: q.UserID, questionID: q.ID}, nil
 	case model.TargetAnswer:
 		a, err := s.answers.GetByID(ctx, targetID)

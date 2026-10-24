@@ -412,3 +412,5 @@ a:hover { color: var(--primary-dark); }
 
 .footer { border-top: 1px solid var(--border); background: var(--card); padding: 16px 0; color: var(--muted); font-size: 13px; }
 .footer .container { display: flex; gap: 8px; }
+
+.q-state { color: var(--muted); }

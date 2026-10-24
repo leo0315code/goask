@@ -83,6 +83,7 @@ async function submitAnswer() {
 }
 
 async function accept(a) {
+  if (!confirm('确定采纳该回答吗？采纳后问题将标记为已解决，不再接受新的回答。')) return
   try {
     await api('POST', `/questions/${id}/accept`, { answer_id: a.id })
     toast('已采纳该回答', 'success')
@@ -155,7 +156,7 @@ async function removeAnswer(a) {
 }
 
 function closeQuestion() {
-  if (!confirm('确定关闭该问题吗？关闭后不能再回答。')) return
+  if (!confirm('确定关闭该问题吗？关闭后不能再回答和评论。')) return
   api('POST', `/questions/${id}/close`)
     .then(() => { toast('问题已关闭', 'success'); return fetchAll() })
     .catch((e) => toast(e.message))
@@ -173,8 +174,8 @@ onMounted(fetchAll)
       <h1>{{ q.title }}</h1>
       <div class="meta">
         <router-link v-for="t in q.tags" :key="t.id" class="tag" :to="{ path: '/', query: { tag: t.name } }">{{ t.name }}</router-link>
-        <span :class="{ 'accepted-flag': q.status === 'closed' }">
-          {{ q.status === 'open' ? '开放中' : q.status === 'closed' ? '已关闭' : '' }}
+        <span class="q-state" :class="{ 'accepted-flag': !!q.accepted_answer_id }">
+          {{ q.status === 'closed' ? '已关闭' : q.accepted_answer_id ? '已解决' : '开放中' }}
         </span>
         <span class="spacer"></span>
         <router-link :to="'/u/' + q.author.username">{{ q.author.username }}</router-link>
@@ -202,7 +203,7 @@ onMounted(fetchAll)
           :upvotes="q.upvote_count" :downvotes="q.downvote_count" :value="q.viewer_vote"
         />
         <span class="spacer"></span>
-        <template v-if="isAuthor && q.status === 'open' && !editingQuestion">
+        <template v-if="isAuthor && q.status !== 'closed' && !editingQuestion">
           <button class="act-link" @click="startEditQuestion">编辑</button>
           <button class="act-link" @click="closeQuestion">关闭</button>
         </template>
