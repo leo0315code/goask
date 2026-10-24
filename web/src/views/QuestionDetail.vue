@@ -203,10 +203,10 @@ onMounted(fetchAll)
         />
         <span class="spacer"></span>
         <template v-if="isAuthor && q.status === 'open' && !editingQuestion">
-          <button class="btn small" @click="startEditQuestion">编辑</button>
-          <button class="btn small" @click="closeQuestion">关闭</button>
+          <button class="act-link" @click="startEditQuestion">编辑</button>
+          <button class="act-link" @click="closeQuestion">关闭</button>
         </template>
-        <button v-if="canManage" class="btn small danger" @click="removeQuestion">删除</button>
+        <button v-if="canManage" class="act-link danger" @click="removeQuestion">删除</button>
       </div>
 
       <Comments target-type="question" :target-id="q.id" />
@@ -243,15 +243,15 @@ onMounted(fetchAll)
         <span class="spacer"></span>
         <button
           v-if="isAuthor && !a.is_accepted"
-          class="btn small accept-btn" @click="accept(a)"
-        >采纳</button>
+          class="act-link accept" @click="accept(a)"
+        >✓ 采纳</button>
         <button
           v-if="store.me && store.me.id === a.user_id && editingAnswerId !== a.id"
-          class="btn small" @click="startEditAnswer(a)"
+          class="act-link" @click="startEditAnswer(a)"
         >编辑</button>
         <button
           v-if="store.me && (store.me.id === a.user_id || store.me.role === 'admin')"
-          class="btn small danger" @click="removeAnswer(a)"
+          class="act-link danger" @click="removeAnswer(a)"
         >删除</button>
       </div>
 
