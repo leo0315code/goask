@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -30,19 +31,38 @@ func (h *AuthHandler) Captcha(c *gin.Context) {
 	})
 }
 
-// captchaSVG 渲染带干扰线的算术验证码 SVG。
+// captchaSVG 渲染算术验证码 SVG：逐字符着色旋转 + 噪点浅弧线，保证可读性。
 func captchaSVG(question string) string {
-	rnd := func(max int64) int {
-		n, _ := rand.Int(rand.Reader, big.NewInt(max))
-		return int(n.Int64())
+	rnd := func(n int) int {
+		v, _ := rand.Int(rand.Reader, big.NewInt(int64(n)))
+		return int(v.Int64())
 	}
-	return fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="130" height="46" viewBox="0 0 130 46">`+
-		`<rect width="130" height="46" rx="6" fill="#f1f4f9"/>`+
-		`<line x1="0" y1="%d" x2="130" y2="%d" stroke="#c3cbd9" stroke-width="1"/>`+
-		`<line x1="0" y1="%d" x2="130" y2="%d" stroke="#c3cbd9" stroke-width="1"/>`+
-		`<text x="65" y="30" font-size="22" text-anchor="middle" fill="#334155" font-family="monospace" letter-spacing="3">%s</text>`+
-		`</svg>`,
-		rnd(38)+4, rnd(38)+4, rnd(38)+4, rnd(38)+4, question)
+	palette := []string{"#1e293b", "#1d4ed8", "#0f766e", "#6d28d9", "#b45309"}
+
+	var b strings.Builder
+	b.WriteString(`<svg xmlns="http://www.w3.org/2000/svg" width="170" height="52" viewBox="0 0 170 52">`)
+	b.WriteString(`<rect width="170" height="52" rx="8" fill="#eef2f9"/>`)
+	for i := 0; i < 24; i++ {
+		fmt.Fprintf(&b, `<circle cx="%d" cy="%d" r="1.2" fill="#94a3b8" opacity="0.3"/>`, rnd(166)+2, rnd(48)+2)
+	}
+	// 文字下层的浅色弧线，不横穿字形
+	fmt.Fprintf(&b, `<path d="M0,%d Q85,%d 170,%d" stroke="#c7d2e2" stroke-width="1.5" fill="none" opacity="0.8"/>`,
+		rnd(12)+6, rnd(18)+18, rnd(12)+6)
+	// 每个字符独立着色与轻微旋转
+	x := 16
+	for _, ch := range question {
+		if ch == ' ' {
+			x += 9
+			continue
+		}
+		fmt.Fprintf(&b, `<text x="%d" y="35" font-size="27" font-weight="bold" fill="%s" `+
+			`font-family="Menlo, Consolas, 'Courier New', monospace" text-anchor="middle" `+
+			`transform="rotate(%d %d 35)">%c</text>`,
+			x, palette[rnd(len(palette))], rnd(17)-8, x, ch)
+		x += 26
+	}
+	b.WriteString(`</svg>`)
+	return b.String()
 }
 
 type registerReq struct {

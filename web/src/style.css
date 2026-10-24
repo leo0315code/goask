@@ -191,7 +191,13 @@ a:hover { color: var(--primary-dark); }
 .form .err { color: var(--red); font-size: 13px; margin-top: 10px; }
 .captcha-row { display: flex; gap: 10px; align-items: center; }
 .captcha-row input { flex: 1; }
-.captcha-img { cursor: pointer; line-height: 0; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+.captcha-img {
+  cursor: pointer; flex-shrink: 0; line-height: 0;
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  background: #eef2f9; box-shadow: var(--shadow);
+}
+.captcha-img:hover { border-color: var(--primary); }
+.captcha-img svg { display: block; }
 
 /* ---- 筛选条 ---- */
 .filter-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; }
