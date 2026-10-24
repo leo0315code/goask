@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,6 +13,7 @@ import (
 	"github.com/leo0315code/goask/internal/config"
 	"github.com/leo0315code/goask/internal/model"
 	"github.com/leo0315code/goask/internal/pkg/apperr"
+	"github.com/leo0315code/goask/internal/pkg/captcha"
 	"github.com/leo0315code/goask/internal/repository"
 )
 
@@ -75,19 +78,44 @@ func (f *fakeUserRepo) GetByIDs(_ context.Context, ids []uint64) ([]model.User, 
 	return out, nil
 }
 
+// fakeSpam 无操作的防灌水检查。
+type fakeSpam struct{}
+
+func (fakeSpam) Check(context.Context, uint64, string) error                  { return nil }
+func (fakeSpam) CheckDuplicate(context.Context, uint64, string, string) error { return nil }
+
 func newTestConfig() *config.Config {
 	return &config.Config{
-		JWTSecret:  "unit-test-secret-32-characters!!",
-		JWTExpire:  3600,
-		BcryptCost: 4,
+		JWTSecret:       "unit-test-secret-32-characters!!",
+		JWTExpire:       3600,
+		BcryptCost:      4,
+		RegisterEnabled: true,
 	}
 }
 
+// solveCaptcha 解析 "7 + 5 = ?" 形式的算术题。
+func solveCaptcha(question string) string {
+	var a, b int
+	if _, err := fmt.Sscanf(question, "%d + %d", &a, &b); err == nil {
+		return fmt.Sprintf("%d", a+b)
+	}
+	if _, err := fmt.Sscanf(question, "%d - %d", &a, &b); err == nil {
+		return fmt.Sprintf("%d", a-b)
+	}
+	return "0"
+}
+
 func TestAuthServiceRegisterAndLogin(t *testing.T) {
-	svc := NewAuthService(&fakeUserRepo{}, newTestConfig())
+	store := captcha.New(time.Minute)
+	svc := NewAuthService(&fakeUserRepo{}, newTestConfig(), store)
 	ctx := context.Background()
 
-	res, err := svc.Register(ctx, "leo", "leo@example.com", "secret123")
+	// 正确流程：先取验证码，再携带答案注册
+	id, question := store.New()
+	res, err := svc.Register(ctx, RegisterInput{
+		Username: "leo", Email: "leo@example.com", Password: "secret123",
+		CaptchaID: id, CaptchaCode: solveCaptcha(question),
+	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, res.Token)
 	assert.Equal(t, "leo", res.User.Username)
@@ -96,18 +124,35 @@ func TestAuthServiceRegisterAndLogin(t *testing.T) {
 	b, _ := json.Marshal(res.User)
 	assert.NotContains(t, string(b), "password_hash")
 
-	// 用户名重复
-	_, err = svc.Register(ctx, "leo", "other@example.com", "secret123")
+	// 验证码错误
+	_, err = svc.Register(ctx, RegisterInput{Username: "x1", Email: "x1@example.com", Password: "secret123", CaptchaID: "bad", CaptchaCode: "1"})
+	require.Error(t, err)
+	assert.Equal(t, 42200, err.(*apperr.Error).Code)
+
+	// 用户名重复（重新取验证码）
+	id, question = store.New()
+	_, err = svc.Register(ctx, RegisterInput{
+		Username: "leo", Email: "other@example.com", Password: "secret123",
+		CaptchaID: id, CaptchaCode: solveCaptcha(question),
+	})
 	require.Error(t, err)
 	assert.Equal(t, 40900, err.(*apperr.Error).Code)
 
 	// 用户名格式非法
-	_, err = svc.Register(ctx, "ab", "a@example.com", "secret123")
+	id, question = store.New()
+	_, err = svc.Register(ctx, RegisterInput{
+		Username: "ab", Email: "a@example.com", Password: "secret123",
+		CaptchaID: id, CaptchaCode: solveCaptcha(question),
+	})
 	require.Error(t, err)
 	assert.Equal(t, 42200, err.(*apperr.Error).Code)
 
 	// 密码过短
-	_, err = svc.Register(ctx, "leo2", "a@example.com", "short")
+	id, question = store.New()
+	_, err = svc.Register(ctx, RegisterInput{
+		Username: "leo2", Email: "a@example.com", Password: "short",
+		CaptchaID: id, CaptchaCode: solveCaptcha(question),
+	})
 	require.Error(t, err)
 	assert.Equal(t, 42200, err.(*apperr.Error).Code)
 
@@ -126,12 +171,60 @@ func TestAuthServiceRegisterAndLogin(t *testing.T) {
 	assert.Equal(t, 42200, err.(*apperr.Error).Code)
 }
 
-func TestAuthServiceBannedUserCannotLogin(t *testing.T) {
-	repo := &fakeUserRepo{}
-	svc := NewAuthService(repo, newTestConfig())
+func TestRegisterInviteCodeAndIPLimit(t *testing.T) {
+	store := captcha.New(time.Minute)
+	cfg := newTestConfig()
+	cfg.RegisterInviteCode = "LETMEIN"
+	cfg.RegisterMaxPerIPPerDay = 2
+	svc := NewAuthService(&fakeUserRepo{}, cfg, store)
 	ctx := context.Background()
 
-	res, err := svc.Register(ctx, "bad", "bad@example.com", "secret123")
+	reg := func(name, invite, ip string) error {
+		id, question := store.New()
+		_, err := svc.Register(ctx, RegisterInput{
+			Username: name, Email: name + "@example.com", Password: "secret123",
+			CaptchaID: id, CaptchaCode: solveCaptcha(question), InviteCode: invite, IP: ip,
+		})
+		return err
+	}
+
+	// 邀请码错误
+	err := reg("usr1", "WRONG", "1.1.1.1")
+	require.Error(t, err)
+	assert.Equal(t, 40300, err.(*apperr.Error).Code)
+
+	// 正确邀请码
+	require.NoError(t, reg("usr1", "LETMEIN", "1.1.1.1"))
+	require.NoError(t, reg("usr2", "LETMEIN", "1.1.1.1"))
+
+	// 同 IP 第 3 次注册被限制
+	err = reg("usr3", "LETMEIN", "1.1.1.1")
+	require.Error(t, err)
+	assert.Equal(t, 42900, err.(*apperr.Error).Code)
+
+	// 换 IP 不受影响
+	require.NoError(t, reg("usr3", "LETMEIN", "2.2.2.2"))
+
+	// 关闭注册
+	cfg2 := newTestConfig()
+	cfg2.RegisterEnabled = false
+	svc2 := NewAuthService(&fakeUserRepo{}, cfg2, captcha.New(time.Minute))
+	id, question := svc2.Captcha().New()
+	_, err = svc2.Register(ctx, RegisterInput{Username: "usr9", Email: "usr9@example.com", Password: "secret123", CaptchaID: id, CaptchaCode: solveCaptcha(question)})
+	require.Error(t, err)
+	assert.Equal(t, 40300, err.(*apperr.Error).Code)
+}
+
+func TestAuthServiceBannedUserCannotLogin(t *testing.T) {
+	repo := &fakeUserRepo{}
+	svc := NewAuthService(repo, newTestConfig(), captcha.New(time.Minute))
+	ctx := context.Background()
+
+	id, question := svc.Captcha().New()
+	res, err := svc.Register(ctx, RegisterInput{
+		Username: "bad", Email: "bad@example.com", Password: "secret123",
+		CaptchaID: id, CaptchaCode: solveCaptcha(question),
+	})
 	require.NoError(t, err)
 	repo.users[res.User.ID].Status = model.UserStatusBanned
 
@@ -227,7 +320,7 @@ func TestAcceptAnswerPermission(t *testing.T) {
 
 	fq := &fakeQuestionRepoForAccept{question: question}
 	fa := &fakeAnswerRepoForAccept{answer: answer}
-	svc := NewQuestionService(fq, fa, &fakeUserRepo{}, nil, &fakeVoteRepo{})
+	svc := NewQuestionService(fq, fa, &fakeUserRepo{}, nil, &fakeVoteRepo{}, fakeSpam{})
 
 	// 非提问者且非管理员 → 403
 	err := svc.AcceptAnswer(ctx, 999, 10, 20, false)
@@ -247,4 +340,55 @@ func TestAcceptAnswerPermission(t *testing.T) {
 	err = svc.AcceptAnswer(ctx, 100, 10, 20, false)
 	require.Error(t, err)
 	assert.Equal(t, 40400, err.(*apperr.Error).Code)
+}
+
+// ---- 防灌水规则 ----
+
+type fakeSpamRepo struct {
+	last    time.Time
+	count   int64
+	dup     bool
+	lastErr error
+}
+
+func (f *fakeSpamRepo) LastPostAt(context.Context, string, uint64) (time.Time, error) {
+	return f.last, f.lastErr
+}
+
+func (f *fakeSpamRepo) RecentCount(context.Context, string, uint64, time.Duration) (int64, error) {
+	return f.count, f.lastErr
+}
+
+func (f *fakeSpamRepo) ExistsRecentDuplicate(context.Context, string, string, uint64, string, time.Duration) (bool, error) {
+	return f.dup, f.lastErr
+}
+
+func TestSpamGuardRules(t *testing.T) {
+	ctx := context.Background()
+
+	// 刚刚发过 → 触发最小间隔
+	g := NewSpamGuard(&fakeSpamRepo{last: time.Now().Add(-5 * time.Second)})
+	err := g.Check(ctx, 1, "question")
+	require.Error(t, err)
+	assert.Equal(t, 42900, err.(*apperr.Error).Code)
+
+	// 上次发布 2 分钟前 → 通过间隔检查；24h 内 20 条 → 触发数量上限
+	g = NewSpamGuard(&fakeSpamRepo{last: time.Now().Add(-2 * time.Minute), count: 20})
+	err = g.Check(ctx, 1, "question")
+	require.Error(t, err)
+	assert.Equal(t, 42900, err.(*apperr.Error).Code)
+
+	// 正常通过
+	g = NewSpamGuard(&fakeSpamRepo{last: time.Now().Add(-2 * time.Minute), count: 3})
+	require.NoError(t, g.Check(ctx, 1, "question"))
+
+	// 重复内容
+	g = NewSpamGuard(&fakeSpamRepo{dup: true})
+	err = g.CheckDuplicate(ctx, 1, "answer", "相同内容")
+	require.Error(t, err)
+	assert.Equal(t, 42200, err.(*apperr.Error).Code)
+
+	// 无重复
+	g = NewSpamGuard(&fakeSpamRepo{})
+	require.NoError(t, g.CheckDuplicate(ctx, 1, "answer", "新内容"))
 }

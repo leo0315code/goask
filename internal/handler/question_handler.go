@@ -22,10 +22,10 @@ type questionReq struct {
 	Tags    []string `json:"tags"`
 }
 
-// List 问题列表：sort=latest|hot|unanswered，tag=标签名。
+// List 问题列表：sort=latest|hot|unanswered，tag=标签名，time=day|week|month|year。
 func (h *QuestionHandler) List(c *gin.Context) {
 	pq := pageQuery(c)
-	views, total, err := h.questions.List(c.Request.Context(), c.Query("sort"), c.Query("tag"), pq)
+	views, total, err := h.questions.List(c.Request.Context(), c.Query("sort"), c.Query("tag"), c.Query("time"), pq)
 	if err != nil {
 		httpx.Fail(c, err)
 		return

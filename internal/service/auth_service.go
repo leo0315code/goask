@@ -6,11 +6,13 @@ import (
 	"net/mail"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/leo0315code/goask/internal/config"
 	"github.com/leo0315code/goask/internal/model"
 	"github.com/leo0315code/goask/internal/pkg/apperr"
+	"github.com/leo0315code/goask/internal/pkg/captcha"
 	"github.com/leo0315code/goask/internal/pkg/jwtx"
 	"github.com/leo0315code/goask/internal/pkg/passwordx"
 )
@@ -22,10 +24,75 @@ type AuthService struct {
 	secret     string
 	ttl        time.Duration
 	bcryptCost int
+
+	registerEnabled bool
+	inviteCode      string
+	maxRegPerIP     int
+	captcha         *captcha.Store
+	regLimiter      *regLimiter
 }
 
-func NewAuthService(users UserRepo, cfg *config.Config) *AuthService {
-	return &AuthService{users: users, secret: cfg.JWTSecret, ttl: cfg.JWTExpire, bcryptCost: cfg.BcryptCost}
+func NewAuthService(users UserRepo, cfg *config.Config, cap *captcha.Store) *AuthService {
+	return &AuthService{
+		users:           users,
+		secret:          cfg.JWTSecret,
+		ttl:             cfg.JWTExpire,
+		bcryptCost:      cfg.BcryptCost,
+		registerEnabled: cfg.RegisterEnabled,
+		inviteCode:      cfg.RegisterInviteCode,
+		maxRegPerIP:     cfg.RegisterMaxPerIPPerDay,
+		captcha:         cap,
+		regLimiter:      newRegLimiter(),
+	}
+}
+
+// Captcha 暴露验证码存储，供 handler 生成图形验证码。
+func (s *AuthService) Captcha() *captcha.Store { return s.captcha }
+
+// RegisterEnabled / InviteRequired 供注册页展示提示。
+func (s *AuthService) RegisterEnabled() bool { return s.registerEnabled }
+func (s *AuthService) InviteRequired() bool  { return s.inviteCode != "" }
+
+// regLimiter 同 IP 注册频次限制（内存滑动窗口，24 小时）。
+type regLimiter struct {
+	mu   sync.Mutex
+	hits map[string][]time.Time
+}
+
+func newRegLimiter() *regLimiter {
+	return &regLimiter{hits: make(map[string][]time.Time)}
+}
+
+func (l *regLimiter) allow(ip string, max int) bool {
+	if max <= 0 {
+		return true
+	}
+	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	keep := l.hits[ip][:0]
+	for _, t := range l.hits[ip] {
+		if now.Sub(t) < 24*time.Hour {
+			keep = append(keep, t)
+		}
+	}
+	if len(keep) >= max {
+		l.hits[ip] = keep
+		return false
+	}
+	l.hits[ip] = append(keep, now)
+	return true
+}
+
+// RegisterInput 注册请求参数。
+type RegisterInput struct {
+	Username    string
+	Email       string
+	Password    string
+	CaptchaID   string
+	CaptchaCode string
+	InviteCode  string
+	IP          string
 }
 
 type AuthResult struct {
@@ -33,18 +100,32 @@ type AuthResult struct {
 	User  *model.User `json:"user"`
 }
 
-func (s *AuthService) Register(ctx context.Context, username, email, password string) (*AuthResult, error) {
-	username = strings.TrimSpace(username)
-	email = strings.ToLower(strings.TrimSpace(email))
+func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*AuthResult, error) {
+	if !s.registerEnabled {
+		return nil, apperr.With(apperr.ErrForbidden, "当前站点已关闭注册")
+	}
+	if !s.captcha.Verify(in.CaptchaID, in.CaptchaCode) {
+		return nil, apperr.With(apperr.ErrValidation, "验证码错误或已过期")
+	}
+	if s.inviteCode != "" && in.InviteCode != s.inviteCode {
+		return nil, apperr.With(apperr.ErrForbidden, "邀请码错误")
+	}
+	if !s.regLimiter.allow(in.IP, s.maxRegPerIP) {
+		return nil, apperr.With(apperr.ErrTooMany, "该 IP 今日注册次数已达上限")
+	}
+
+	username := strings.TrimSpace(in.Username)
+	email := strings.ToLower(strings.TrimSpace(in.Email))
 	if !usernameRe.MatchString(username) {
 		return nil, apperr.With(apperr.ErrValidation, "用户名需为 3-32 位字母、数字或下划线")
 	}
 	if addr, err := mail.ParseAddress(email); err != nil || addr.Address != email {
 		return nil, apperr.With(apperr.ErrValidation, "邮箱格式不正确")
 	}
-	if len(password) < 8 || len(password) > 72 {
+	if len(in.Password) < 8 || len(in.Password) > 72 {
 		return nil, apperr.With(apperr.ErrValidation, "密码长度需为 8-72 字节")
 	}
+	password := in.Password
 	hash, err := passwordx.Hash(password, s.bcryptCost)
 	if err != nil {
 		return nil, err

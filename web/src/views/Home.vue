@@ -16,6 +16,14 @@ const sorts = [
   { key: 'unanswered', label: '未回答' },
 ]
 
+const times = [
+  { key: 'all', label: '全部时间' },
+  { key: 'day', label: '一天内' },
+  { key: 'week', label: '一周内' },
+  { key: 'month', label: '一月内' },
+  { key: 'year', label: '一年内' },
+]
+
 const list = ref([])
 const total = ref(0)
 const loading = ref(true)
@@ -23,6 +31,7 @@ const loading = ref(true)
 const sort = computed(() => route.query.sort || 'latest')
 const keyword = computed(() => route.query.q || '')
 const tag = computed(() => route.query.tag || '')
+const time = computed(() => route.query.time || 'all')
 const page = computed(() => Number(route.query.page) || 1)
 const pageSize = 15
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
@@ -32,6 +41,7 @@ async function fetchList() {
   try {
     const params = new URLSearchParams({ sort: sort.value, ...Object.fromEntries(new URLSearchParams(pageParams(page.value, pageSize))) })
     if (tag.value) params.set('tag', tag.value)
+    if (time.value !== 'all') params.set('time', time.value)
     const path = keyword.value ? '/search?q=' + encodeURIComponent(keyword.value) : '/questions'
     const data = await api('GET', path + '?' + params.toString())
     list.value = data.list
@@ -61,6 +71,9 @@ function go(change) {
     else delete query.tag
     delete query.page
   }
+  const currentTime = change.time !== undefined ? change.time : time.value
+  if (currentTime !== 'all') query.time = currentTime
+  if (change.time !== undefined) delete query.page
   router.push({ path: '/', query })
 }
 
@@ -82,6 +95,15 @@ watch(() => route.query, fetchList, { immediate: true })
           >{{ s.label }}</button>
         </div>
         <router-link v-else class="btn small" to="/">查看全部</router-link>
+      </div>
+
+      <div v-if="!keyword" class="filter-row">
+        <span class="filter-label">时间</span>
+        <button
+          v-for="t in times" :key="t.key"
+          class="chip" :class="{ active: time === t.key }"
+          @click="go({ time: t.key })"
+        >{{ t.label }}</button>
       </div>
 
       <div v-if="loading" class="loading">加载中…</div>

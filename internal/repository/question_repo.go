@@ -58,16 +58,28 @@ func (r *QuestionRepo) GetByID(ctx context.Context, id uint64) (*model.Question,
 type QuestionListQuery struct {
 	Sort     string // latest | hot | unanswered；Search 非空时按相关度
 	TagID    uint64 // 0 = 不过滤
+	Since    string // 时间过滤：day | week | month | year（其他 = 全部）
 	Search   string // 全文检索关键词
 	UserID   uint64 // 0 = 不过滤
 	Page     int
 	PageSize int
 }
 
+// sinceIntervals 时间过滤取值 → SQL 区间表达式（白名单，避免拼接用户输入）。
+var sinceIntervals = map[string]string{
+	"day":   "INTERVAL 1 DAY",
+	"week":  "INTERVAL 7 DAY",
+	"month": "INTERVAL 30 DAY",
+	"year":  "INTERVAL 365 DAY",
+}
+
 func (r *QuestionRepo) List(ctx context.Context, q QuestionListQuery) ([]model.Question, int64, error) {
 	base := func() *gorm.DB {
 		db := r.db.WithContext(ctx).Model(&model.Question{}).
 			Where("status <> ?", model.QuestionStatusDeleted)
+		if expr, ok := sinceIntervals[q.Since]; ok {
+			db = db.Where("created_at >= NOW() - " + expr)
+		}
 		if q.TagID > 0 {
 			db = db.Where("id IN (SELECT question_id FROM question_tags WHERE tag_id = ?)", q.TagID)
 		}

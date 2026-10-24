@@ -12,6 +12,8 @@
 - 评论：问题 / 回答下的评论
 - 标签：自动创建、热门排序
 - 检索：标题 + 正文中文全文检索（MySQL ngram）
+- 筛选：排序（最新/热门/未回答）+ 时间范围（一天/一周/一月/一年）+ 标签 + 全文搜索
+- 防滥用：注册图形验证码、注册开关与邀请码、同 IP 每日注册上限、发帖频次限制（最小间隔 + 24h 上限）、重复内容拦截、双层 IP 限流
 - 生产要素：健康检查、优雅停机、按 IP 限流、统一错误码、结构化日志、自动数据库迁移
 
 ## 技术栈
@@ -72,6 +74,9 @@ npm run dev                 # http://localhost:5173，/api 自动代理到 :8080
 | `CORS_ORIGINS` | `*` | 逗号分隔白名单，生产必须收敛 |
 | `RATE_LIMIT_GLOBAL_RPM` | `120` | 全局限流（次/分/IP） |
 | `RATE_LIMIT_AUTH_RPM` | `10` | 注册/登录限流（次/分/IP） |
+| `REGISTER_ENABLED` | `true` | 是否开放注册（关闭后注册页显示提示） |
+| `REGISTER_INVITE_CODE` | 空 | 设置后注册必须携带邀请码 |
+| `REGISTER_MAX_PER_IP_PER_DAY` | `3` | 同 IP 每日注册上限（0 = 不限） |
 | `MIGRATE_ON_START` | `true` | 启动时自动执行迁移 |
 | `SEED_ADMIN_USERNAME` / `SEED_ADMIN_PASSWORD` | 空 | 设置后启动时确保管理员存在 |
 

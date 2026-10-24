@@ -33,6 +33,16 @@ Authorization: Bearer <token>
 
 限流：全局 120 req/min/IP，注册/登录 10 req/min/IP，超限返回 HTTP 429。
 
+### 防灌水（发布频次）
+
+发布问题 / 回答 / 评论时服务端强制检查，违规返回 `42900` 或 `42200`：
+
+| 类型 | 最小间隔 | 24 小时上限 | 重复内容 |
+| --- | --- | --- | --- |
+| 问题 | 60 秒 | 20 | 同一用户 24h 内相同标题拒绝 |
+| 回答 | 30 秒 | 50 | 24h 内相同正文拒绝 |
+| 评论 | 10 秒 | 200 | 24h 内相同正文拒绝 |
+
 ## 3. 健康检查
 
 | 方法 | 路径 | 说明 |
@@ -42,16 +52,39 @@ Authorization: Bearer <token>
 
 ## 4. 认证模块
 
+### GET `/api/v1/auth/captcha`
+
+注册前获取图形算术验证码（一次性，5 分钟有效）：
+
+```json
+{"code":0,"message":"ok","data":{
+  "captcha_id":"a1b2c3...",
+  "svg":"<svg ...>4 + 3 = ?</svg>",
+  "register_enabled": true,
+  "invite_required": false
+}}
+```
+
 ### POST `/api/v1/auth/register`
 
 ```json
-// 请求
-{"username": "leo", "email": "leo@example.com", "password": "secret123"}
+// 请求（captcha_id / captcha_code 必填，来自 captcha 接口）
+{"username": "leo", "email": "leo@example.com", "password": "secret123",
+ "captcha_id": "a1b2c3...", "captcha_code": "7", "invite_code": ""}
 // 200
 {"code":0,"message":"ok","data":{"token":"eyJ...","user":{"id":1,"username":"leo","email":"leo@example.com"}}}
 ```
 
-规则：username 3–32 位 `[A-Za-z0-9_]`；密码 8–72 位。用户名或邮箱重复 → `40900`。
+规则：username 3–32 位 `[A-Za-z0-9_]`；密码 8–72 位；重复 → `40900`。
+注册防护（触发时返回对应错误码）：
+
+| 防护 | 条件 | 错误 |
+| --- | --- | --- |
+| 注册开关 | `REGISTER_ENABLED=false` | `40300` |
+| 邀请码 | 配置了 `REGISTER_INVITE_CODE` 且不匹配 | `40300` |
+| 验证码 | 缺失 / 错误 / 过期（一次性） | `42200` |
+| IP 限额 | 同 IP 当日注册 ≥ `REGISTER_MAX_PER_IP_PER_DAY`（默认 3） | `42900` |
+| 认证限流 | 注册/登录 > 10 次/分/IP | `42900` |
 
 ### POST `/api/v1/auth/login`
 
@@ -81,7 +114,7 @@ Authorization: Bearer <token>
 
 ### GET `/api/v1/questions`
 
-Query：`page`、`page_size`、`sort`（`latest` 默认 / `hot` / `unanswered`）、`tag`（标签名过滤）。
+Query：`page`、`page_size`、`sort`（`latest` 默认 / `hot` / `unanswered`）、`tag`（标签名）、`time`（时间过滤：`day` / `week` / `month` / `year`，缺省全部）。
 
 ```json
 {"code":0,"message":"ok","data":{

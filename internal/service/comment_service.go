@@ -15,10 +15,11 @@ type CommentService struct {
 	questions QuestionRepo
 	answers   AnswerRepo
 	users     UserRepo
+	spam      SpamChecker
 }
 
-func NewCommentService(comments CommentRepo, questions QuestionRepo, answers AnswerRepo, users UserRepo) *CommentService {
-	return &CommentService{comments: comments, questions: questions, answers: answers, users: users}
+func NewCommentService(comments CommentRepo, questions QuestionRepo, answers AnswerRepo, users UserRepo, spam SpamChecker) *CommentService {
+	return &CommentService{comments: comments, questions: questions, answers: answers, users: users, spam: spam}
 }
 
 func validateCommentContent(content string) (string, error) {
@@ -61,6 +62,12 @@ func (s *CommentService) Create(ctx context.Context, userID uint64, targetType s
 		return nil, err
 	}
 	if err := s.ensureTarget(ctx, targetType, targetID); err != nil {
+		return nil, err
+	}
+	if err := s.spam.Check(ctx, userID, "comment"); err != nil {
+		return nil, err
+	}
+	if err := s.spam.CheckDuplicate(ctx, userID, "comment", content); err != nil {
 		return nil, err
 	}
 	c := &model.Comment{

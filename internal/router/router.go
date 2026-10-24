@@ -16,6 +16,7 @@ import (
 	"github.com/leo0315code/goask/internal/handler"
 	"github.com/leo0315code/goask/internal/middleware"
 	"github.com/leo0315code/goask/internal/pkg/apperr"
+	"github.com/leo0315code/goask/internal/pkg/captcha"
 	"github.com/leo0315code/goask/internal/pkg/httpx"
 	"github.com/leo0315code/goask/internal/repository"
 	"github.com/leo0315code/goask/internal/service"
@@ -24,10 +25,12 @@ import (
 
 func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	repos := repository.NewRepos(db)
-	authSvc := service.NewAuthService(repos.Users, cfg)
-	questionSvc := service.NewQuestionService(repos.Questions, repos.Answers, repos.Users, repos.Tags, repos.Votes)
-	answerSvc := service.NewAnswerService(repos.Answers, repos.Questions, repos.Users)
-	commentSvc := service.NewCommentService(repos.Comments, repos.Questions, repos.Answers, repos.Users)
+	spamGuard := service.NewSpamGuard(repos.Spam)
+	captchaStore := captcha.New(5 * time.Minute)
+	authSvc := service.NewAuthService(repos.Users, cfg, captchaStore)
+	questionSvc := service.NewQuestionService(repos.Questions, repos.Answers, repos.Users, repos.Tags, repos.Votes, spamGuard)
+	answerSvc := service.NewAnswerService(repos.Answers, repos.Questions, repos.Users, spamGuard)
+	commentSvc := service.NewCommentService(repos.Comments, repos.Questions, repos.Answers, repos.Users, spamGuard)
 	voteSvc := service.NewVoteService(repos.Votes)
 	tagSvc := service.NewTagService(repos.Tags)
 
@@ -79,6 +82,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	v1.Use(authOptional)
 
 	// 认证与用户
+	v1.GET("/auth/captcha", authH.Captcha)
 	v1.POST("/auth/register", authLimiter, authH.Register)
 	v1.POST("/auth/login", authLimiter, authH.Login)
 	v1.GET("/users/me", authRequired, authH.Me)

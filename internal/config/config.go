@@ -26,6 +26,10 @@ type Config struct {
 	RateLimitGlobal int // 次/分/IP
 	RateLimitAuth   int // 注册/登录 次/分/IP
 
+	RegisterEnabled        bool   // 是否开放注册
+	RegisterInviteCode     string // 非空时注册必须携带邀请码
+	RegisterMaxPerIPPerDay int    // 同 IP 每日注册上限（0 = 不限）
+
 	MigrateOnStart    bool
 	MigrationsDir     string
 	SeedAdminUsername string
@@ -67,17 +71,21 @@ func Load() (*Config, error) {
 			MaxIdleConns:    getEnvInt("DB_MAX_IDLE_CONNS", 10),
 			ConnMaxLifetime: getEnvDuration("DB_CONN_MAX_LIFETIME", 5*time.Minute),
 		},
-		JWTSecret:         os.Getenv("JWT_SECRET"),
-		JWTExpire:         getEnvDuration("JWT_EXPIRE", 72*time.Hour),
-		BcryptCost:        getEnvInt("BCRYPT_COST", 12),
-		CORSOrigins:       splitList(getEnv("CORS_ORIGINS", "*")),
-		TrustedProxies:    splitList(getEnv("TRUSTED_PROXIES", "")),
-		RateLimitGlobal:   getEnvInt("RATE_LIMIT_GLOBAL_RPM", 120),
-		RateLimitAuth:     getEnvInt("RATE_LIMIT_AUTH_RPM", 10),
-		MigrateOnStart:    getEnvBool("MIGRATE_ON_START", true),
-		MigrationsDir:     getEnv("MIGRATIONS_DIR", "migrations"),
-		SeedAdminUsername: os.Getenv("SEED_ADMIN_USERNAME"),
-		SeedAdminPassword: os.Getenv("SEED_ADMIN_PASSWORD"),
+		JWTSecret:       os.Getenv("JWT_SECRET"),
+		JWTExpire:       getEnvDuration("JWT_EXPIRE", 72*time.Hour),
+		BcryptCost:      getEnvInt("BCRYPT_COST", 12),
+		CORSOrigins:     splitList(getEnv("CORS_ORIGINS", "*")),
+		TrustedProxies:  splitList(getEnv("TRUSTED_PROXIES", "")),
+		RateLimitGlobal: getEnvInt("RATE_LIMIT_GLOBAL_RPM", 120),
+		RateLimitAuth:   getEnvInt("RATE_LIMIT_AUTH_RPM", 10),
+
+		RegisterEnabled:        getEnvBool("REGISTER_ENABLED", true),
+		RegisterInviteCode:     os.Getenv("REGISTER_INVITE_CODE"),
+		RegisterMaxPerIPPerDay: getEnvInt("REGISTER_MAX_PER_IP_PER_DAY", 3),
+		MigrateOnStart:         getEnvBool("MIGRATE_ON_START", true),
+		MigrationsDir:          getEnv("MIGRATIONS_DIR", "migrations"),
+		SeedAdminUsername:      os.Getenv("SEED_ADMIN_USERNAME"),
+		SeedAdminPassword:      os.Getenv("SEED_ADMIN_PASSWORD"),
 	}
 
 	if len(cfg.JWTSecret) < 16 {

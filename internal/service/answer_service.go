@@ -14,10 +14,11 @@ type AnswerService struct {
 	answers   AnswerRepo
 	questions QuestionRepo
 	users     UserRepo
+	spam      SpamChecker
 }
 
-func NewAnswerService(answers AnswerRepo, questions QuestionRepo, users UserRepo) *AnswerService {
-	return &AnswerService{answers: answers, questions: questions, users: users}
+func NewAnswerService(answers AnswerRepo, questions QuestionRepo, users UserRepo, spam SpamChecker) *AnswerService {
+	return &AnswerService{answers: answers, questions: questions, users: users, spam: spam}
 }
 
 func validateContent(content string) (string, error) {
@@ -69,6 +70,12 @@ func (s *AnswerService) Create(ctx context.Context, userID, questionID uint64, c
 	}
 	if q.UserID == userID {
 		return nil, apperr.With(apperr.ErrValidation, "不能回答自己的问题")
+	}
+	if err := s.spam.Check(ctx, userID, "answer"); err != nil {
+		return nil, err
+	}
+	if err := s.spam.CheckDuplicate(ctx, userID, "answer", content); err != nil {
+		return nil, err
 	}
 	a := &model.Answer{
 		QuestionID: questionID,

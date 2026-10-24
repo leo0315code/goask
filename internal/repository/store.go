@@ -25,6 +25,7 @@ type Repos struct {
 	Votes     *VoteRepo
 	Comments  *CommentRepo
 	Tags      *TagRepo
+	Spam      *SpamRepo
 }
 
 func NewRepos(db *gorm.DB) *Repos {
@@ -35,6 +36,7 @@ func NewRepos(db *gorm.DB) *Repos {
 		Votes:     &VoteRepo{db: db},
 		Comments:  &CommentRepo{db: db},
 		Tags:      &TagRepo{db: db},
+		Spam:      &SpamRepo{db: db},
 	}
 }
 

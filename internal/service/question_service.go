@@ -19,10 +19,11 @@ type QuestionService struct {
 	users     UserRepo
 	tags      TagRepo
 	votes     VoteRepo
+	spam      SpamChecker
 }
 
-func NewQuestionService(questions QuestionRepo, answers AnswerRepo, users UserRepo, tags TagRepo, votes VoteRepo) *QuestionService {
-	return &QuestionService{questions: questions, answers: answers, users: users, tags: tags, votes: votes}
+func NewQuestionService(questions QuestionRepo, answers AnswerRepo, users UserRepo, tags TagRepo, votes VoteRepo, spam SpamChecker) *QuestionService {
+	return &QuestionService{questions: questions, answers: answers, users: users, tags: tags, votes: votes, spam: spam}
 }
 
 func validateTitleContent(title, content string) (string, string, error) {
@@ -44,6 +45,12 @@ func (s *QuestionService) Create(ctx context.Context, userID uint64, title, cont
 	}
 	tagNames, err := normalizeTags(tags)
 	if err != nil {
+		return nil, err
+	}
+	if err := s.spam.Check(ctx, userID, "question"); err != nil {
+		return nil, err
+	}
+	if err := s.spam.CheckDuplicate(ctx, userID, "question", title); err != nil {
 		return nil, err
 	}
 	q := &model.Question{
@@ -108,8 +115,9 @@ func (s *QuestionService) Get(ctx context.Context, id, viewerID uint64) (*Questi
 	return s.buildView(ctx, q, viewerID)
 }
 
-// List 问题列表：sort = latest（默认）/ hot / unanswered；tag 按标签名过滤。
-func (s *QuestionService) List(ctx context.Context, sort, tag string, pq httpx.PageQuery) ([]QuestionView, int64, error) {
+// List 问题列表：sort = latest（默认）/ hot / unanswered；tag 按标签名过滤；
+// since 时间过滤：day / week / month / year（空或未知 = 全部）。
+func (s *QuestionService) List(ctx context.Context, sort, tag, since string, pq httpx.PageQuery) ([]QuestionView, int64, error) {
 	var tagID uint64
 	if tag != "" {
 		t, err := s.tags.GetByName(ctx, strings.ToLower(strings.TrimSpace(tag)))
@@ -122,7 +130,7 @@ func (s *QuestionService) List(ctx context.Context, sort, tag string, pq httpx.P
 		tagID = t.ID
 	}
 	list, total, err := s.questions.List(ctx, repository.QuestionListQuery{
-		Sort: sort, TagID: tagID, Page: pq.Page, PageSize: pq.PageSize,
+		Sort: sort, TagID: tagID, Since: since, Page: pq.Page, PageSize: pq.PageSize,
 	})
 	if err != nil {
 		return nil, 0, err

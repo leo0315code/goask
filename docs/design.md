@@ -118,6 +118,14 @@ score = (upvote_count - downvote_count + answer_count) / POWER(天数 + 2, 1.5)
 
 超限返回 HTTP 429 + 错误码 `42900`。桶使用 `sync.Map` + 定期清理，避免内存泄漏。
 
+### 6.5a 防恶意注册与灌水
+- **图形验证码**：注册必须先 `GET /auth/captcha` 领取一次性算术题（内置 SVG 渲染 + 干扰线，5 分钟有效、用后即焚），无外部服务依赖；
+- **注册开关与邀请码**：`REGISTER_ENABLED` 一键关闭开放注册；`REGISTER_INVITE_CODE` 开启邀请制；
+- **同 IP 注册限额**：默认 3 个/日/IP（内存滑动窗口）；
+- **发布频次**：问题 60s 间隔 / 20 条每 24h，回答 30s / 50，评论 10s / 200——由 `SpamGuard` 在 service 层统一检查，数据来自数据库（多实例部署同样生效）；
+- **重复内容拦截**：同一用户 24h 内发布完全相同的标题/正文直接拒绝；
+- 所有阈值集中在 `internal/service/antispam.go` 的 `spamRules`，可按站点情况调整。
+
 ### 6.6 统一响应与错误码
 
 ```json
