@@ -8,7 +8,17 @@ import (
 	"github.com/leo0315code/goask/internal/model"
 	"github.com/leo0315code/goask/internal/pkg/apperr"
 	"github.com/leo0315code/goask/internal/pkg/httpx"
+	"github.com/leo0315code/goask/internal/repository"
 )
+
+// CommentRepo 评论仓储接口（repository.CommentRepo 实现）。
+type CommentRepo interface {
+	Create(ctx context.Context, c *model.Comment) error
+	GetByID(ctx context.Context, id uint64) (*model.Comment, error)
+	GetRowByID(ctx context.Context, id uint64) (*repository.CommentRow, error)
+	Delete(ctx context.Context, id uint64) error
+	ListTree(ctx context.Context, targetType string, targetID uint64, page, pageSize int) ([]repository.CommentNode, int64, error)
+}
 
 type CommentService struct {
 	comments  CommentRepo
@@ -33,7 +43,7 @@ func validateCommentContent(content string) (string, error) {
 
 // commentTarget 评论目标的归属信息。
 type commentTarget struct {
-	authorID   uint64 // 目标作者（通知接收人）
+	authorID   uint64 // 目标作者（根评论时通知接收人）
 	questionID uint64 // 所属问题（跳转用）
 }
 
@@ -63,7 +73,9 @@ func (s *CommentService) ensureTarget(ctx context.Context, targetType string, ta
 	}
 }
 
-func (s *CommentService) Create(ctx context.Context, userID uint64, targetType string, targetID uint64, content string) (*CommentView, error) {
+// Create 发表评论；parentID > 0 时为楼中楼回复（拍平到根评论）。
+// 根评论通知目标作者；回复通知被回复的评论作者。
+func (s *CommentService) Create(ctx context.Context, userID uint64, targetType string, targetID uint64, content string, parentID uint64) (*repository.CommentRow, error) {
 	content, err := validateCommentContent(content)
 	if err != nil {
 		return nil, err
@@ -78,24 +90,47 @@ func (s *CommentService) Create(ctx context.Context, userID uint64, targetType s
 	if err := s.spam.CheckDuplicate(ctx, userID, "comment", content); err != nil {
 		return nil, err
 	}
+
+	var replyToUserID uint64
+	if parentID > 0 {
+		parent, err := s.comments.GetByID(ctx, parentID)
+		if err != nil {
+			return nil, apperr.With(apperr.ErrNotFound, "被回复的评论不存在")
+		}
+		if parent.Status != model.CommentStatusPublished {
+			return nil, apperr.With(apperr.ErrNotFound, "被回复的评论不存在或已删除")
+		}
+		if parent.TargetType != targetType || parent.TargetID != targetID {
+			return nil, apperr.With(apperr.ErrValidation, "被回复的评论不属于该内容")
+		}
+		if parent.ParentID > 0 {
+			parentID = parent.ParentID // 只有一层嵌套：回复统一挂到根评论
+		}
+		replyToUserID = parent.UserID
+	}
+
 	c := &model.Comment{
-		UserID:     userID,
-		TargetType: targetType,
-		TargetID:   targetID,
-		Content:    content,
-		Status:     model.CommentStatusPublished,
+		UserID:        userID,
+		TargetType:    targetType,
+		TargetID:      targetID,
+		ParentID:      parentID,
+		ReplyToUserID: replyToUserID,
+		Content:       content,
+		Status:        model.CommentStatusPublished,
 	}
 	if err := s.comments.Create(ctx, c); err != nil {
 		return nil, err
 	}
+
 	if s.notifier != nil {
-		s.notifier.NotifyComment(ctx, target.authorID, userID, target.questionID, targetType, content)
+		if parentID > 0 {
+			s.notifier.NotifyCommentReply(ctx, replyToUserID, userID, target.questionID, parentID, content)
+		} else {
+			s.notifier.NotifyComment(ctx, target.authorID, userID, target.questionID, targetType, content)
+		}
 	}
-	authors, err := buildAuthors(ctx, s.users, c.UserID)
-	if err != nil {
-		return nil, err
-	}
-	return &CommentView{Comment: *c, Author: authors[c.UserID]}, nil
+
+	return s.comments.GetRowByID(ctx, c.ID)
 }
 
 // Delete 删除评论（作者本人或管理员），软删除。
@@ -113,28 +148,13 @@ func (s *CommentService) Delete(ctx context.Context, userID, commentID uint64, i
 	return s.comments.Delete(ctx, commentID)
 }
 
-func (s *CommentService) List(ctx context.Context, targetType string, targetID uint64, pq httpx.PageQuery) ([]CommentView, int64, error) {
+// List 楼中楼列表：根评论分页（旧→新），每条根评论挂全部回复。
+func (s *CommentService) List(ctx context.Context, targetType string, targetID uint64, pq httpx.PageQuery) ([]repository.CommentNode, int64, error) {
 	if targetType != model.TargetQuestion && targetType != model.TargetAnswer {
 		return nil, 0, apperr.With(apperr.ErrBadRequest, "未知的评论目标类型")
 	}
 	if _, err := s.ensureTarget(ctx, targetType, targetID); err != nil {
 		return nil, 0, err
 	}
-	list, total, err := s.comments.ListByTarget(ctx, targetType, targetID, pq.Page, pq.PageSize)
-	if err != nil {
-		return nil, 0, err
-	}
-	ids := make([]uint64, 0, len(list))
-	for i := range list {
-		ids = append(ids, list[i].UserID)
-	}
-	authors, err := buildAuthors(ctx, s.users, ids...)
-	if err != nil {
-		return nil, 0, err
-	}
-	views := make([]CommentView, 0, len(list))
-	for i := range list {
-		views = append(views, CommentView{Comment: list[i], Author: authors[list[i].UserID]})
-	}
-	return views, total, nil
+	return s.comments.ListTree(ctx, targetType, targetID, pq.Page, pq.PageSize)
 }

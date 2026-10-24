@@ -49,13 +49,6 @@ type VoteRepo interface {
 	GetViewerVote(ctx context.Context, userID uint64, targetType string, targetID uint64) (int, error)
 }
 
-type CommentRepo interface {
-	Create(ctx context.Context, c *model.Comment) error
-	GetByID(ctx context.Context, id uint64) (*model.Comment, error)
-	Delete(ctx context.Context, id uint64) error
-	ListByTarget(ctx context.Context, targetType string, targetID uint64, page, pageSize int) ([]model.Comment, int64, error)
-}
-
 type TagRepo interface {
 	GetByName(ctx context.Context, name string) (*model.Tag, error)
 	List(ctx context.Context, limit int) ([]model.Tag, error)
@@ -71,11 +64,6 @@ type QuestionView struct {
 
 type AnswerView struct {
 	model.Answer
-	Author model.Author `json:"author"`
-}
-
-type CommentView struct {
-	model.Comment
 	Author model.Author `json:"author"`
 }
 

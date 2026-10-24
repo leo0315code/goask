@@ -18,7 +18,8 @@ func NewCommentHandler(comments *service.CommentService) *CommentHandler {
 }
 
 type commentReq struct {
-	Content string `json:"content" binding:"required,max=1000"`
+	Content  string `json:"content" binding:"required,max=1000"`
+	ParentID uint64 `json:"parent_id"`
 }
 
 func (h *CommentHandler) ListQuestionComments(c *gin.Context) {
@@ -64,7 +65,7 @@ func (h *CommentHandler) create(c *gin.Context, targetType string) {
 	if !httpx.Bind(c, &req) {
 		return
 	}
-	view, err := h.comments.Create(c.Request.Context(), uid, targetType, id, req.Content)
+	view, err := h.comments.Create(c.Request.Context(), uid, targetType, id, req.Content, req.ParentID)
 	if err != nil {
 		httpx.Fail(c, err)
 		return

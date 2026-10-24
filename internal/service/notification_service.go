@@ -24,6 +24,7 @@ type NotificationRepo interface {
 type Notifier interface {
 	NotifyAnswerCreated(ctx context.Context, recipientID, actorID, questionID uint64, questionTitle, excerpt string)
 	NotifyComment(ctx context.Context, recipientID, actorID, questionID uint64, targetType, excerpt string)
+	NotifyCommentReply(ctx context.Context, recipientID, actorID, questionID, parentCommentID uint64, excerpt string)
 	NotifyAccepted(ctx context.Context, recipientID, actorID, answerID, questionID uint64, questionTitle string)
 	NotifyUpvote(ctx context.Context, actorID uint64, targetType string, targetID uint64)
 }
@@ -78,6 +79,10 @@ func (s *NotificationService) NotifyComment(ctx context.Context, recipientID, ac
 		notifTarget = model.TargetAnswer
 	}
 	s.create(ctx, recipientID, actorID, notifType, notifTarget, targetID, questionID, firstRunes(excerpt, 80))
+}
+
+func (s *NotificationService) NotifyCommentReply(ctx context.Context, recipientID, actorID, questionID, parentCommentID uint64, excerpt string) {
+	s.create(ctx, recipientID, actorID, model.NotifCommentReply, "comment", parentCommentID, questionID, firstRunes(excerpt, 80))
 }
 
 func (s *NotificationService) NotifyAccepted(ctx context.Context, recipientID, actorID, answerID, questionID uint64, questionTitle string) {

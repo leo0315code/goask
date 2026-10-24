@@ -257,6 +257,16 @@ a:hover { color: var(--primary-dark); }
 .comment-md { margin-top: 4px; font-size: 14px; }
 .comment-md p { margin: 4px 0; }
 .comment-md pre { margin: 6px 0; }
+.c-actions { margin-top: 2px; }
+.c-reply {
+  border: none; background: none; cursor: pointer;
+  color: var(--muted); font-size: 12px; padding: 2px 6px; border-radius: 6px;
+}
+.c-reply:hover { color: var(--primary); background: var(--vote-pill-bg); }
+.reply-tag { color: var(--primary); font-size: 13px; }
+.comment.reply { padding: 10px 0 2px; }
+.avatar.xxs { width: 28px; height: 28px; font-size: 12px; }
+.reply-form { margin: 6px 0 0 0; padding: 10px; background: var(--bg); border-radius: 10px; }
 .owner-actions { display: flex; gap: 8px; }
 .comment-form { display: flex; gap: 12px; margin-top: 14px; }
 .cf-main { flex: 1; min-width: 0; }

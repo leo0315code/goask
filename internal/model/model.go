@@ -99,16 +99,21 @@ type Vote struct {
 func (Vote) TableName() string { return "votes" }
 
 type Comment struct {
-	ID         uint64    `gorm:"primaryKey;column:id" json:"id"`
-	UserID     uint64    `gorm:"column:user_id" json:"user_id"`
-	TargetType string    `gorm:"column:target_type" json:"target_type"`
-	TargetID   uint64    `gorm:"column:target_id" json:"target_id"`
-	Content    string    `gorm:"column:content" json:"content"`
-	Status     string    `gorm:"column:status" json:"status"`
-	CreatedAt  time.Time `gorm:"column:created_at" json:"created_at"`
+	ID            uint64    `gorm:"primaryKey;column:id" json:"id"`
+	UserID        uint64    `gorm:"column:user_id" json:"user_id"`
+	TargetType    string    `gorm:"column:target_type" json:"target_type"`
+	TargetID      uint64    `gorm:"column:target_id" json:"target_id"`
+	ParentID      uint64    `gorm:"column:parent_id" json:"parent_id"`               // 0 = 根评论；>0 指向根评论 ID
+	ReplyToUserID uint64    `gorm:"column:reply_to_user_id" json:"reply_to_user_id"` // 被回复的评论作者
+	Content       string    `gorm:"column:content" json:"content"`
+	Status        string    `gorm:"column:status" json:"status"`
+	CreatedAt     time.Time `gorm:"column:created_at" json:"created_at"`
 }
 
 func (Comment) TableName() string { return "comments" }
+
+// 通知类型：回复了你的评论
+const NotifCommentReply = "comment_reply"
 
 // Author 内嵌在问题/回答/评论视图中的作者摘要。
 type Author struct {

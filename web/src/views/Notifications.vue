@@ -21,6 +21,7 @@ function notifText(n) {
     case 'answer': return '回答了你的问题'
     case 'comment_question': return '评论了你的问题'
     case 'comment_answer': return '评论了你的回答'
+    case 'comment_reply': return '回复了你的评论'
     case 'accept': return '采纳了你的回答'
     case 'vote_up_question': return '赞了你的问题'
     case 'vote_up_answer': return '赞了你的回答'
