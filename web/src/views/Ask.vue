@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { api } from '../api'
 import { toast } from '../toast'
+import MarkdownEditor from '../components/MarkdownEditor.vue'
 
 const router = useRouter()
 
@@ -110,10 +111,8 @@ async function submit() {
         正文
         <span class="f-markdown">支持 Markdown</span>
       </label>
-      <textarea
-        v-model="content" class="f-input content-input"
-        placeholder="描述你遇到的问题、已尝试的方案、相关环境信息…&#10;&#10;提示：用 ``` 可以插入代码块"
-      ></textarea>
+      <MarkdownEditor v-model="content" :min-height="240"
+        placeholder="描述你遇到的问题、已尝试的方案、相关环境信息…" />
 
       <label class="f-label">
         标签

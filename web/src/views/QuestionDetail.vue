@@ -12,6 +12,7 @@ import AuthorCard from '../components/AuthorCard.vue'
 import RelatedQuestions from '../components/RelatedQuestions.vue'
 import HotTagsCard from '../components/HotTagsCard.vue'
 import MarkdownContent from '../components/MarkdownContent.vue'
+import MarkdownEditor from '../components/MarkdownEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -193,7 +194,7 @@ onMounted(fetchAll)
       <template v-else>
         <div class="edit-form">
           <input v-model="editQ.title" maxlength="150" />
-          <textarea v-model="editQ.content"></textarea>
+          <MarkdownEditor v-model="editQ.content" :min-height="160" />
           <input v-model="editQ.tags" placeholder="标签，逗号分隔" />
           <div class="actions">
             <button class="btn primary small" @click="saveQuestion">保存</button>
@@ -229,7 +230,7 @@ onMounted(fetchAll)
       </template>
       <template v-else>
         <div class="edit-form">
-          <textarea v-model="editAContent"></textarea>
+          <MarkdownEditor v-model="editAContent" :min-height="120" />
           <div class="actions">
             <button class="btn primary small" @click="saveAnswer(a)">保存</button>
             <button class="btn small" @click="editingAnswerId = 0">取消</button>
@@ -266,7 +267,7 @@ onMounted(fetchAll)
 
     <div v-if="canAnswer" class="card">
       <div class="section-title inline">撰写回答</div>
-      <textarea v-model="answerForm" placeholder="分享你的答案…"></textarea>
+      <MarkdownEditor v-model="answerForm" :min-height="180" placeholder="分享你的答案…（支持 Markdown）" />
       <div class="actions">
         <button class="btn primary" :disabled="answering" @click="submitAnswer">发表回答</button>
       </div>
