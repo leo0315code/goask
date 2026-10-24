@@ -34,6 +34,7 @@ type User struct {
 	Role          string    `gorm:"column:role" json:"role"`
 	Status        string    `gorm:"column:status" json:"status"`
 	Reputation    int       `gorm:"column:reputation" json:"reputation"`
+	TokenVersion  uint64    `gorm:"column:token_version" json:"-"`
 	QuestionCount int       `gorm:"column:question_count" json:"question_count"`
 	AnswerCount   int       `gorm:"column:answer_count" json:"answer_count"`
 	CreatedAt     time.Time `gorm:"column:created_at" json:"created_at"`

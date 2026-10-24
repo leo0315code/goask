@@ -2,13 +2,30 @@
 // 账号设置：修改密码
 import { ref } from 'vue'
 import { api } from '../api'
+import { setToken, loadMe } from '../store'
 import { toast } from '../toast'
 
 const oldPassword = ref('')
 const newPassword = ref('')
 const confirm = ref('')
 const submitting = ref(false)
+const kicking = ref(false)
 const error = ref('')
+
+async function kickAll() {
+  if (!confirm('确定让所有设备退出登录吗？当前设备会自动换发新 token 保持登录。')) return
+  kicking.value = true
+  try {
+    const d = await api('POST', '/users/me/logout-all')
+    setToken(d.token)
+    await loadMe()
+    toast('其他设备已退出登录', 'success')
+  } catch (e) {
+    toast(e.message)
+  } finally {
+    kicking.value = false
+  }
+}
 
 async function submit() {
   error.value = ''
@@ -22,7 +39,9 @@ async function submit() {
       old_password: oldPassword.value,
       new_password: newPassword.value,
     })
-    toast('密码修改成功', 'success')
+    setToken(data.token)
+    await loadMe()
+    toast('密码修改成功，其他设备已退出登录', 'success')
     oldPassword.value = newPassword.value = confirm.value = ''
   } catch (e) {
     error.value = e.message
@@ -45,6 +64,9 @@ async function submit() {
     <div class="actions">
       <button class="btn primary" :disabled="submitting" @click="submit">修改密码</button>
     </div>
-    <p class="hint">提示：修改密码后当前登录状态保持有效，下次登录请使用新密码。</p>
+    <div class="actions">
+      <button class="btn danger" :disabled="kicking" @click="kickAll">让所有设备退出登录</button>
+    </div>
+    <p class="hint">提示：修改密码 / 全端登出后其他设备立即失效，当前设备自动换发新 token。</p>
   </div>
 </template>

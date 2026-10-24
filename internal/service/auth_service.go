@@ -168,7 +168,7 @@ func (s *AuthService) Login(ctx context.Context, account, password string) (*Aut
 }
 
 func (s *AuthService) issue(u *model.User) (*AuthResult, error) {
-	token, _, err := jwtx.Generate(u.ID, u.Role, s.secret, s.ttl)
+	token, _, err := jwtx.Generate(u.ID, u.Role, u.TokenVersion, s.secret, s.ttl)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +187,11 @@ func (s *AuthService) UpdateProfile(ctx context.Context, userID uint64, bio, ava
 }
 
 // PublicProfile 公开主页信息，不返回邮箱。
+// IssueFor 为指定用户签发新 token（改密码 / 刷新会话用）。
+func (s *AuthService) IssueFor(u *model.User) (*AuthResult, error) {
+	return s.issue(u)
+}
+
 func (s *AuthService) PublicProfile(ctx context.Context, username string) (*model.User, error) {
 	u, err := s.users.GetByUsername(ctx, username)
 	if err != nil {

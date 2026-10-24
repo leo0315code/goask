@@ -8,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/leo0315code/goask/internal/middleware"
+	"github.com/leo0315code/goask/internal/pkg/apperr"
 	"github.com/leo0315code/goask/internal/pkg/httpx"
 	"github.com/leo0315code/goask/internal/service"
 )
@@ -36,11 +38,52 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	if !httpx.Bind(c, &req) {
 		return
 	}
-	if err := h.users.ChangePassword(c.Request.Context(), uid, req.OldPassword, req.NewPassword); err != nil {
+	user, err := h.users.ChangePassword(c.Request.Context(), uid, req.OldPassword, req.NewPassword)
+	if err != nil {
 		httpx.Fail(c, err)
 		return
 	}
-	httpx.OK(c, nil)
+	// 旧 token 已随版本号失效，签发并返回新 token 保持登录
+	res, err := h.auth.IssueFor(user)
+	if err != nil {
+		httpx.Fail(c, err)
+		return
+	}
+	httpx.OK(c, res)
+}
+
+// Refresh 刷新当前会话的 token。
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	user := middleware.CurrentUser(c)
+	if user == nil {
+		httpx.Fail(c, apperr.ErrUnauthorized)
+		return
+	}
+	res, err := h.auth.IssueFor(user)
+	if err != nil {
+		httpx.Fail(c, err)
+		return
+	}
+	httpx.OK(c, res)
+}
+
+// LogoutEverywhere 使所有设备的登录态失效，返回新 token（当前设备保持登录）。
+func (h *AuthHandler) LogoutEverywhere(c *gin.Context) {
+	uid, ok := currentUserID(c)
+	if !ok {
+		return
+	}
+	user, err := h.users.LogoutEverywhere(c.Request.Context(), uid)
+	if err != nil {
+		httpx.Fail(c, err)
+		return
+	}
+	res, err := h.auth.IssueFor(user)
+	if err != nil {
+		httpx.Fail(c, err)
+		return
+	}
+	httpx.OK(c, res)
 }
 
 // Captcha 发放图形算术验证码（注册用），并附带注册策略提示。

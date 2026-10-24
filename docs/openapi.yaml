@@ -1,0 +1,836 @@
+openapi: 3.0.3
+info:
+  title: GoAsk API
+  description: 基于 Go + MySQL 的问答社区 API。除标注外，写操作需在 Authorization 头携带 Bearer JWT。
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+tags:
+  - { name: auth, description: 认证与账号 }
+  - { name: users, description: 用户 }
+  - { name: questions, description: 问题 }
+  - { name: answers, description: 回答 }
+  - { name: comments, description: 评论（楼中楼） }
+  - { name: votes, description: 投票 }
+  - { name: favorites, description: 收藏 }
+  - { name: notifications, description: 通知（SSE 实时推送） }
+  - { name: search, description: 检索 }
+  - { name: upload, description: 图片上传 }
+  - { name: admin, description: 管理端（仅管理员） }
+  - { name: system, description: 系统 }
+
+paths:
+  /auth/captcha:
+    get:
+      tags: [auth]
+      summary: 获取注册算术验证码（一次性，5 分钟有效）
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  code: { type: integer, example: 0 }
+                  data:
+                    type: object
+                    properties:
+                      captcha_id: { type: string }
+                      svg: { type: string, description: 算术题 SVG }
+                      register_enabled: { type: boolean }
+                      invite_required: { type: boolean }
+
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: 注册（需验证码；受注册开关/邀请码/同 IP 每日上限约束）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, email, password, captcha_id, captcha_code]
+              properties:
+                username: { type: string, example: leo }
+                email: { type: string, example: leo@example.com }
+                password: { type: string, example: secret123 }
+                captcha_id: { type: string }
+                captcha_code: { type: string }
+                invite_code: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/AuthResult" }
+        "409": { $ref: "#/components/responses/Error" }
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: 登录（用户名或邮箱）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account, password]
+              properties:
+                account: { type: string }
+                password: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/AuthResult" }
+
+  /users/me:
+    get:
+      tags: [users]
+      summary: 当前用户资料（需登录）
+      responses:
+        "200": { $ref: "#/components/responses/User" }
+    put:
+      tags: [users]
+      summary: 修改资料（需登录）
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bio: { type: string }
+                avatar_url: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/OK" }
+
+  /users/me/password:
+    put:
+      tags: [users]
+      summary: 修改密码（需登录；旧 token 全部失效，返回新 token）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [old_password, new_password]
+              properties:
+                old_password: { type: string }
+                new_password: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/AuthResult" }
+
+  /users/me/refresh:
+    post:
+      tags: [users]
+      summary: 刷新会话 token（需登录）
+      responses:
+        "200": { $ref: "#/components/responses/AuthResult" }
+
+  /users/me/logout-all:
+    post:
+      tags: [users]
+      summary: 全端登出（需登录；返回当前设备的新 token）
+      responses:
+        "200": { $ref: "#/components/responses/AuthResult" }
+
+  /users/{username}:
+    get:
+      tags: [users]
+      summary: 公开主页
+      parameters: [{ $ref: "#/components/parameters/Username" }]
+      responses:
+        "200": { $ref: "#/components/responses/User" }
+
+  /users/{username}/questions:
+    get:
+      tags: [users]
+      summary: 某用户的提问（分页）
+      parameters:
+        - { $ref: "#/components/parameters/Username" }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200": { $ref: "#/components/responses/QuestionPage" }
+
+  /users/{username}/answers:
+    get:
+      tags: [users]
+      summary: 某用户的回答（分页，含问题标题）
+      parameters:
+        - { $ref: "#/components/parameters/Username" }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          list:
+                            type: array
+                            items: { $ref: "#/components/schemas/AnswerOfUser" }
+
+  /me/favorites:
+    get:
+      tags: [favorites]
+      summary: 我的收藏（需登录，分页）
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          list:
+                            type: array
+                            items: { $ref: "#/components/schemas/FavoriteItem" }
+
+  /questions:
+    get:
+      tags: [questions]
+      summary: 问题列表
+      parameters:
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+        - { name: sort, in: query, schema: { type: string, enum: [latest, hot, unanswered] } }
+        - { name: tag, in: query, schema: { type: string } }
+        - { name: time, in: query, schema: { type: string, enum: [day, week, month, year] } }
+        - { name: accepted, in: query, schema: { type: string, enum: [yes, no] } }
+      responses:
+        "200": { $ref: "#/components/responses/QuestionPage" }
+    post:
+      tags: [questions]
+      summary: 发布问题（需登录）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, content]
+              properties:
+                title: { type: string, maxLength: 150 }
+                content: { type: string, description: Markdown }
+                tags: { type: array, maxItems: 5, items: { type: string } }
+      responses:
+        "200": { $ref: "#/components/responses/QuestionDetail" }
+
+  /questions/{id}:
+    get:
+      tags: [questions]
+      summary: 问题详情（可选登录，返回 viewer_vote；浏览数 +1）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200": { $ref: "#/components/responses/QuestionDetail" }
+    put:
+      tags: [questions]
+      summary: 编辑问题（仅作者/管理员）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200": { $ref: "#/components/responses/OK" }
+    delete:
+      tags: [questions]
+      summary: 删除问题（作者/管理员，软删除）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200": { $ref: "#/components/responses/OK" }
+
+  /questions/{id}/accept:
+    post:
+      tags: [questions]
+      summary: 采纳回答（仅提问者；采纳后问题标记为已解决，不再接受新回答）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answer_id]
+              properties:
+                answer_id: { type: integer }
+      responses:
+        "200": { $ref: "#/components/responses/OK" }
+
+  /questions/{id}/close:
+    post:
+      tags: [questions]
+      summary: 关闭问题（作者/管理员；回答与评论全部锁定）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200": { $ref: "#/components/responses/OK" }
+
+  /questions/{id}/favorite:
+    post:
+      tags: [favorites]
+      summary: 收藏/取消收藏（需登录，返回切换后状态）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties: { favorited: { type: boolean } }
+    get:
+      tags: [favorites]
+      summary: 查询是否已收藏（未登录返回 false）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties: { favorited: { type: boolean } }
+
+  /questions/{id}/answers:
+    get:
+      tags: [answers]
+      summary: 问题下的回答列表（采纳置顶）
+      parameters:
+        - { $ref: "#/components/parameters/ID" }
+        - { name: sort, in: query, schema: { type: string, enum: [latest, votes] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          list:
+                            type: array
+                            items: { $ref: "#/components/schemas/AnswerView" }
+    post:
+      tags: [answers]
+      summary: 回答问题（需登录；问题已解决/已关闭时 422）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties: { content: { type: string } }
+      responses:
+        "200": { $ref: "#/components/responses/AnswerView" }
+
+  /answers/{id}:
+    put:
+      tags: [answers]
+      summary: 编辑回答（作者/管理员）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200": { $ref: "#/components/responses/OK" }
+    delete:
+      tags: [answers]
+      summary: 删除回答（作者/管理员，软删除并回减计数）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200": { $ref: "#/components/responses/OK" }
+
+  /questions/{id}/comments:
+    get:
+      tags: [comments]
+      summary: 根评论分页（旧→新，每条含 replies[]）
+      parameters:
+        - { $ref: "#/components/parameters/ID" }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          list:
+                            type: array
+                            items: { $ref: "#/components/schemas/CommentNode" }
+    post:
+      tags: [comments]
+      summary: 发表评论（parent_id 为根评论 ID 时为楼中楼回复）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: { type: string, maxLength: 1000 }
+                parent_id: { type: integer, description: 根评论 ID，回复时携带 }
+      responses:
+        "200": { $ref: "#/components/responses/CommentRow" }
+
+  /answers/{id}/comments:
+    get:
+      tags: [comments]
+      summary: 回答下的评论（楼中楼）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200": { $ref: "#/components/responses/CommentPage" }
+    post:
+      tags: [comments]
+      summary: 评论回答
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200": { $ref: "#/components/responses/CommentRow" }
+
+  /comments/{id}:
+    delete:
+      tags: [comments]
+      summary: 删除评论（作者/管理员，软删除）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200": { $ref: "#/components/responses/OK" }
+
+  /votes:
+    post:
+      tags: [votes]
+      summary: 投票（同向再点撤销，反向切换；不能投自己的内容）
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_type, target_id, value]
+              properties:
+                target_type: { type: string, enum: [question, answer] }
+                target_id: { type: integer }
+                value: { type: integer, enum: [1, -1] }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      value: { type: integer, description: 0 表示已撤销 }
+                      upvote_count: { type: integer }
+                      downvote_count: { type: integer }
+    get:
+      tags: [votes]
+      summary: 查询当前用户对目标的投票值（未登录返回 0）
+      parameters:
+        - { name: target_type, in: query, schema: { type: string, enum: [question, answer] } }
+        - { name: target_id, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties: { value: { type: integer } }
+
+  /notifications:
+    get:
+      tags: [notifications]
+      summary: 通知列表（?unread=1 只看未读；含 unread_count）
+      parameters:
+        - { name: unread, in: query, schema: { type: string, enum: ["0", "1"] } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      list:
+                        type: array
+                        items: { $ref: "#/components/schemas/Notification" }
+                      unread_count: { type: integer }
+  /notifications/{id}/read:
+    post:
+      tags: [notifications]
+      summary: 单条已读
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      responses:
+        "200": { $ref: "#/components/responses/OK" }
+  /notifications/read-all:
+    post:
+      tags: [notifications]
+      summary: 全部已读
+      responses:
+        "200": { $ref: "#/components/responses/OK" }
+  /notifications/stream:
+    get:
+      tags: [notifications]
+      summary: SSE 实时推送（token 走查询参数；25s 心跳；断线自动重连）
+      parameters:
+        - { name: token, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: 'data: {"type":"answer","content":"…","question_id":6}'
+
+  /tags:
+    get:
+      tags: [search]
+      summary: 热门标签
+      parameters: [{ name: limit, in: query, schema: { type: integer, default: 50 } }]
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        question_count: { type: integer }
+
+  /search:
+    get:
+      tags: [search]
+      summary: 中文全文检索（标题 + 正文，ngram）
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200": { $ref: "#/components/responses/QuestionPage" }
+
+  /upload/image:
+    post:
+      tags: [upload]
+      summary: 图片上传（需登录；魔数校验 png/jpg/gif/webp，≤ MAX_UPLOAD_MB）
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties: { url: { type: string, example: /uploads/2026/10/<hex>.png } }
+
+  /admin/stats:
+    get:
+      tags: [admin]
+      summary: 概览统计（仅管理员）
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users: { type: integer }
+                  questions: { type: integer }
+                  answers: { type: integer }
+                  comments: { type: integer }
+                  votes: { type: integer }
+                  new_users_today: { type: integer }
+                  new_questions_today: { type: integer }
+                  new_answers_today: { type: integer }
+  /admin/users:
+    get:
+      tags: [admin]
+      summary: 用户列表（仅管理员）
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Page" }
+        - { $ref: "#/components/parameters/PageSize" }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Page"
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          list:
+                            type: array
+                            items: { $ref: "#/components/schemas/User" }
+  /admin/users/{id}/status:
+    put:
+      tags: [admin]
+      summary: 封禁/解封（仅管理员；封禁即时生效，写审计日志）
+      parameters: [{ $ref: "#/components/parameters/ID" }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [active, banned] }
+      responses:
+        "200": { $ref: "#/components/responses/OK" }
+
+  /healthz:
+    get:
+      tags: [system]
+      summary: 存活探针（不查库）
+      responses: { "200": { description: ok } }
+  /readyz:
+    get:
+      tags: [system]
+      summary: 就绪探针（SELECT 1）
+      responses: { "200": { description: ok }, "503": { description: 数据库不可用 } }
+  /metrics:
+    get:
+      tags: [system]
+      summary: Prometheus 指标
+      responses:
+        "200":
+          content:
+            text/plain:
+              schema: { type: string }
+
+components:
+  parameters:
+    ID: { name: id, in: path, required: true, schema: { type: integer } }
+    Username: { name: username, in: path, required: true, schema: { type: string } }
+    Page: { name: page, in: query, schema: { type: integer, default: 1 } }
+    PageSize: { name: page_size, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        email: { type: string }
+        avatar_url: { type: string }
+        bio: { type: string }
+        role: { type: string, enum: [user, admin] }
+        status: { type: string, enum: [active, banned] }
+        reputation: { type: integer }
+        question_count: { type: integer }
+        answer_count: { type: integer }
+    Tag:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+    Author:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        avatar_url: { type: string }
+        role: { type: string }
+    Question:
+      type: object
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        title: { type: string }
+        content: { type: string }
+        status: { type: string, enum: [open, closed, deleted] }
+        view_count: { type: integer }
+        answer_count: { type: integer }
+        upvote_count: { type: integer }
+        downvote_count: { type: integer }
+        accepted_answer_id: { type: integer, nullable: true }
+        last_activity_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        tags: { type: array, items: { $ref: "#/components/schemas/Tag" } }
+    Answer:
+      type: object
+      properties:
+        id: { type: integer }
+        question_id: { type: integer }
+        content: { type: string }
+        status: { type: string }
+        upvote_count: { type: integer }
+        is_accepted: { type: boolean }
+        created_at: { type: string, format: date-time }
+    Comment:
+      type: object
+      properties:
+        id: { type: integer }
+        parent_id: { type: integer, description: 0 = 根评论 }
+        reply_to_name: { type: string, description: 被回复人昵称 }
+        content: { type: string }
+        author_name: { type: string }
+        created_at: { type: string, format: date-time }
+        replies:
+          type: array
+          description: 仅根评论节点携带
+          items: { $ref: "#/components/schemas/Comment" }
+    Notification:
+      type: object
+      properties:
+        id: { type: integer }
+        type:
+          type: string
+          enum: [answer, comment_question, comment_answer, comment_reply, accept, vote_up_question, vote_up_answer]
+        actor_name: { type: string }
+        question_id: { type: integer }
+        question_title: { type: string }
+        is_read: { type: boolean }
+        created_at: { type: string, format: date-time }
+    AuthResult:
+      type: object
+      properties:
+        token: { type: string }
+        user: { $ref: "#/components/schemas/User" }
+    Page:
+      type: object
+      properties:
+        code: { type: integer, example: 0 }
+        message: { type: string, example: ok }
+        total: { type: integer }
+        page: { type: integer }
+        page_size: { type: integer }
+  responses:
+    OK:
+      description: 成功（data 为 null）
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Page" }
+    User:
+      description: 用户
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code: { type: integer }
+              data: { $ref: "#/components/schemas/User" }
+    AuthResult:
+      description: token 与用户
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code: { type: integer }
+              data: { $ref: "#/components/schemas/AuthResult" }
+    QuestionPage:
+      description: 问题分页
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Page"
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      list:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: "#/components/schemas/Question"
+                            - type: object
+                              properties:
+                                author: { $ref: "#/components/schemas/Author" }
+    QuestionDetail:
+      description: 问题详情（含 author 与 viewer_vote）
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                allOf:
+                  - $ref: "#/components/schemas/Question"
+                  - type: object
+                    properties:
+                      author: { $ref: "#/components/schemas/Author" }
+                      viewer_vote: { type: integer }
+    AnswerView:
+      description: 回答视图
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                allOf:
+                  - $ref: "#/components/schemas/Answer"
+                  - type: object
+                    properties:
+                      author: { $ref: "#/components/schemas/Author" }
+    CommentRow:
+      description: 单条评论
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Comment" }
+    CommentPage:
+      description: 评论分页
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Page"
+              - type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      list:
+                        type: array
+                        items: { $ref: "#/components/schemas/Comment" }
+    Error:
+      description: 业务错误
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              code: { type: integer, example: 40000 }
+              message: { type: string }

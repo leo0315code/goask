@@ -69,6 +69,7 @@ func (f *fakeUserRepo) GetByEmailOrUsername(_ context.Context, account string) (
 func (f *fakeUserRepo) UpdateProfile(_ context.Context, _ uint64, _, _ string) error { return nil }
 
 func (f *fakeUserRepo) UpdatePassword(_ context.Context, _ uint64, _ string) error { return nil }
+func (f *fakeUserRepo) BumpTokenVersion(_ context.Context, _ uint64) error         { return nil }
 func (f *fakeUserRepo) SetStatus(_ context.Context, _ uint64, _ string) error      { return nil }
 func (f *fakeUserRepo) List(_ context.Context, _ string, _, _ int) ([]model.User, int64, error) {
 	return nil, 0, nil

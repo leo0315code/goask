@@ -27,6 +27,17 @@ export function setToken(token) {
   else localStorage.removeItem('goask_token')
 }
 
+// 刷新会话 token（活跃用户保持登录，避免 72h 后被动掉线）
+export async function refreshSession() {
+  if (!localStorage.getItem('goask_token')) return
+  try {
+    const d = await api('POST', '/users/me/refresh')
+    localStorage.setItem('goask_token', d.token)
+  } catch {
+    /* 失败时静默，401 由全局事件处理 */
+  }
+}
+
 export function logout() {
   localStorage.removeItem('goask_token')
   store.me = null

@@ -146,7 +146,7 @@ watch(() => route.query, fetchList, { immediate: true })
       <div v-else-if="list.length === 0" class="card empty">
         暂无问题，<router-link to="/ask">去提第一个问题 →</router-link>
       </div>
-      <QuestionItem v-for="q in list" v-else :key="q.id" :q="q" />
+      <QuestionItem v-for="q in list" v-else :key="q.id" :q="q" :keyword="keyword" />
 
       <div v-if="totalPages > 1" class="pager">
         <button class="btn small" :disabled="page <= 1" @click="go({ page: page - 1 })">上一页</button>

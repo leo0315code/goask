@@ -15,17 +15,19 @@ var ErrInvalid = errors.New("jwtx: invalid token")
 type Claims struct {
 	UserID uint64 `json:"uid"`
 	Role   string `json:"role"`
+	Ver    uint64 `json:"ver"` // 用户 token_version，改密码/全端登出后旧 token 失效
 	jwt.RegisteredClaims
 }
 
 // Generate 签发 token，返回 token 字符串与过期时间。角色冗余在 claims 中，
 // 用于免查库的权限判断（角色变更在令牌过期后生效）。
-func Generate(userID uint64, role, secret string, ttl time.Duration) (string, time.Time, error) {
+func Generate(userID uint64, role string, ver uint64, secret string, ttl time.Duration) (string, time.Time, error) {
 	now := time.Now()
 	exp := now.Add(ttl)
 	claims := Claims{
 		UserID: userID,
 		Role:   role,
+		Ver:    ver,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    "goask",
 			Subject:   strconv.FormatUint(userID, 10),

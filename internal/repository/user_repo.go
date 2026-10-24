@@ -84,6 +84,19 @@ func (r *UserRepo) UpdatePassword(ctx context.Context, id uint64, hash string) e
 	return nil
 }
 
+// BumpTokenVersion 使该用户所有已签发 token 失效。
+func (r *UserRepo) BumpTokenVersion(ctx context.Context, id uint64) error {
+	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).
+		UpdateColumn("token_version", gorm.Expr("token_version + 1"))
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return apperr.ErrNotFound
+	}
+	return nil
+}
+
 // SetStatus 管理员设置用户状态（active / banned）。
 func (r *UserRepo) SetStatus(ctx context.Context, id uint64, status string) error {
 	res := r.db.WithContext(ctx).Model(&model.User{}).Where("id = ?", id).

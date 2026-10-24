@@ -15,6 +15,7 @@ import (
 	"github.com/leo0315code/goask/internal/config"
 	"github.com/leo0315code/goask/internal/handler"
 	"github.com/leo0315code/goask/internal/hub"
+	"github.com/leo0315code/goask/internal/metrics"
 	"github.com/leo0315code/goask/internal/middleware"
 	"github.com/leo0315code/goask/internal/pkg/apperr"
 	"github.com/leo0315code/goask/internal/pkg/captcha"
@@ -58,6 +59,17 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		_ = r.SetTrustedProxies(nil)
 	}
 
+	// 指标采集
+	r.Use(func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		route := c.FullPath()
+		if route == "" {
+			route = "unmatched"
+		}
+		metrics.Observe(c.Request.Method, route, c.Writer.Status(), time.Since(start).Seconds())
+	})
+
 	// 请求体上限：普通接口 1MB；图片上传按 MAX_UPLOAD_MB 放宽
 	r.Use(func(c *gin.Context) {
 		limit := int64(1 << 20)
@@ -77,6 +89,10 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 
 	// 用户上传的图片（随机文件名，目录见 UPLOAD_DIR）
 	r.Static("/uploads", cfg.UploadDir)
+
+	r.GET("/metrics", func(c *gin.Context) {
+		c.Data(200, "text/plain; version=0.0.4; charset=utf-8", []byte(metrics.Render()))
+	})
 
 	r.GET("/healthz", func(c *gin.Context) {
 		httpx.OK(c, gin.H{"status": "ok"})
@@ -111,6 +127,8 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	v1.GET("/users/me", authRequired, authH.Me)
 	v1.PUT("/users/me", authRequired, authH.UpdateMe)
 	v1.PUT("/users/me/password", authRequired, authH.ChangePassword)
+	v1.POST("/users/me/refresh", authRequired, authH.Refresh)
+	v1.POST("/users/me/logout-all", authRequired, authH.LogoutEverywhere)
 	v1.GET("/users/:username", authH.PublicProfile)
 
 	// 通知

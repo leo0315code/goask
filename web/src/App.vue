@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { store, logout, loadMe, refreshUnread } from './store'
+import { store, logout, loadMe, refreshUnread, refreshSession } from './store'
 import { toasts, toast } from './toast'
 import { useTheme } from './theme'
 
@@ -59,6 +59,7 @@ onMounted(() => {
   window.addEventListener('goask:unauthorized', onUnauthorized)
   // SSE 实时推送 + 低频轮询兜底（main.js 已在挂载前恢复登录态）
   refreshUnread()
+  refreshSession()
   connectSSE()
   unreadTimer = setInterval(refreshUnread, 60000)
 })

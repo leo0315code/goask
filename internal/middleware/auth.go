@@ -70,6 +70,11 @@ func Auth(secret string, required bool, loadUser UserLoader) gin.HandlerFunc {
 				c.Abort()
 				return
 			}
+			if claims.Ver != user.TokenVersion {
+				httpx.Fail(c, apperr.With(apperr.ErrUnauthorized, "登录状态已失效，请重新登录"))
+				c.Abort()
+				return
+			}
 			c.Set(ctxRoleKey, user.Role)
 			c.Set(ctxUserKey, user)
 		}

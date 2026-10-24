@@ -146,6 +146,26 @@ check("时间+热门组合", s == 200 and r["code"] == 0, r)
 s, r = call("GET", "/search?q=E2E")
 check("全文检索", s == 200 and r["data"]["total"] >= 1, r)
 
+# ---- Token 版本化 ----
+s, r = call("PUT", "/users/me/password", {"old_password": "secret123", "new_password": "newpass_e2e"}, T3)
+check("修改密码返回新 token", s == 200 and r["data"]["token"], r)
+new_token = r["data"]["token"]
+s, r = call("GET", "/users/me", token=T3)
+check("旧 token 立即失效 → 401", s == 401 and r["code"] == 40100, (s, r))
+s, r = call("GET", "/users/me", token=new_token)
+check("新 token 可用", s == 200 and r["code"] == 0, (s, r))
+s, r = call("POST", "/users/me/refresh", token=new_token)
+check("refresh 换发新 token", s == 200 and r["data"]["token"], r)
+s, r = call("POST", "/auth/login", {"account": U3, "password": "newpass_e2e"})
+check("新密码登录", s == 200 and r["code"] == 0, r)
+
+# ---- metrics ----
+import urllib.request as _ur
+req = _ur.Request(os.environ.get("BASE", "http://127.0.0.1:8080") + "/metrics")
+with _ur.urlopen(req) as resp:
+    body = resp.read().decode()
+check("metrics 端点", resp.status == 200 and "goask_requests_total" in body, resp.status)
+
 # ---- 权限 ----
 s, r = call("PUT", f"/questions/{qid}", {"title": "越权编辑的标题够长了吧哈哈", "content": "x"}, T2)
 check("非作者编辑 → 403", s == 403 and r["code"] == 40300, (s, r))

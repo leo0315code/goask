@@ -536,3 +536,12 @@ a:hover { color: var(--primary-dark); }
 .act-link.fav { color: var(--orange); font-weight: 600; }
 .act-link.fav.on { color: var(--orange); }
 .answer-item .meta { margin-top: 8px; }
+
+/* 搜索关键词高亮 */
+.markdown mark, .excerpt mark, .title mark {
+  background: #fff3bf; color: inherit; padding: 0 1px; border-radius: 3px;
+}
+html.dark .markdown mark, html.dark .excerpt mark, html.dark .title mark {
+  background: rgba(250, 204, 21, .35); color: #fff;
+}
+.btn.danger-outline { color: var(--red); border-color: var(--red); }

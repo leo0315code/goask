@@ -17,7 +17,7 @@
 - 检索：标题 + 正文中文全文检索（MySQL ngram）
 - 筛选：排序（最新/热门/未回答）+ 时间范围（一天/一周/一月/一年）+ 标签 + 全文搜索
 - 防滥用：注册图形验证码、注册开关与邀请码、同 IP 每日注册上限、发帖频次限制（最小间隔 + 24h 上限）、重复内容拦截、双层 IP 限流
-- 生产要素：健康检查、优雅停机、按 IP 限流、统一错误码、结构化日志、自动数据库迁移
+- 生产要素：健康检查、优雅停机、按 IP 限流、统一错误码、结构化日志、自动数据库迁移、`/metrics` 监控端点、搜索关键词高亮
 
 ## 技术栈
 
@@ -77,6 +77,8 @@ npm run dev                 # http://localhost:5173，/api 自动代理到 :8080
 | `CORS_ORIGINS` | `*` | 逗号分隔白名单，生产必须收敛 |
 | `RATE_LIMIT_GLOBAL_RPM` | `120` | 全局限流（次/分/IP） |
 | `RATE_LIMIT_AUTH_RPM` | `10` | 注册/登录限流（次/分/IP） |
+| `UPLOAD_DIR` | `uploads` | 图片上传存储目录 |
+| `MAX_UPLOAD_MB` | `5` | 单张图片大小上限 |
 | `REGISTER_ENABLED` | `true` | 是否开放注册（关闭后注册页显示提示） |
 | `REGISTER_INVITE_CODE` | 空 | 设置后注册必须携带邀请码 |
 | `REGISTER_MAX_PER_IP_PER_DAY` | `3` | 同 IP 每日注册上限（0 = 不限） |
@@ -122,6 +124,7 @@ make down     # docker compose 停止
 - [架构设计](docs/design.md)：分层、选型、关键决策（投票一致性、热度公式、限流）
 - [数据库设计](docs/database.md)：ER、表结构、索引与全文检索、迁移策略
 - [API 设计](docs/api.md)：全部端点、请求/响应示例、错误码
+- [OpenAPI 规范](docs/openapi.yaml)：机器可读的全量接口定义（可导入 Apifox/Postman/Swagger UI）
 
 ## 上线检查清单
 

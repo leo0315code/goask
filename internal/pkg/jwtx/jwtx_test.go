@@ -8,7 +8,7 @@ import (
 const testSecret = "test-secret-at-least-32-characters!!"
 
 func TestGenerateAndParse(t *testing.T) {
-	token, exp, err := Generate(42, "admin", testSecret, time.Hour)
+	token, exp, err := Generate(42, "admin", 0, testSecret, time.Hour)
 	if err != nil {
 		t.Fatalf("Generate 失败: %v", err)
 	}
@@ -25,7 +25,7 @@ func TestGenerateAndParse(t *testing.T) {
 }
 
 func TestParseWrongSecret(t *testing.T) {
-	token, _, err := Generate(1, "user", testSecret, time.Hour)
+	token, _, err := Generate(1, "user", 0, testSecret, time.Hour)
 	if err != nil {
 		t.Fatalf("Generate 失败: %v", err)
 	}
@@ -35,12 +35,26 @@ func TestParseWrongSecret(t *testing.T) {
 }
 
 func TestParseExpired(t *testing.T) {
-	token, _, err := Generate(1, "user", testSecret, -time.Minute)
+	token, _, err := Generate(1, "user", 0, testSecret, -time.Minute)
 	if err != nil {
 		t.Fatalf("Generate 失败: %v", err)
 	}
 	if _, err := Parse(token, testSecret); err != ErrInvalid {
 		t.Fatalf("过期 token 应返回 ErrInvalid，实际: %v", err)
+	}
+}
+
+func TestParseVerIncluded(t *testing.T) {
+	token, _, err := Generate(7, "user", 3, testSecret, time.Hour)
+	if err != nil {
+		t.Fatalf("Generate 失败: %v", err)
+	}
+	claims, err := Parse(token, testSecret)
+	if err != nil {
+		t.Fatalf("Parse 失败: %v", err)
+	}
+	if claims.Ver != 3 {
+		t.Fatalf("版本号应随 claims 传递: %d", claims.Ver)
 	}
 }
 
