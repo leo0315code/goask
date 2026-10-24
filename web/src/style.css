@@ -13,8 +13,9 @@
   --shadow: 0 1px 2px rgba(16, 24, 40, .06);
   --tag-bg: #eff4ff;
   --tag-hover-bg: #dbe7ff;
-  --vote-hover: #fff7ed;
-  --vote-active: #ffedd5;
+  --vote-pill-bg: #eef1f6;
+  --vote-hover: #e4eaf3;
+  --vote-active-bg: rgba(37, 99, 235, .12);
   --accept-bg: #f0fdf4;
 }
 
@@ -34,8 +35,9 @@ html.dark {
   --shadow: 0 1px 3px rgba(0, 0, 0, .5);
   --tag-bg: rgba(59, 130, 246, .16);
   --tag-hover-bg: rgba(59, 130, 246, .3);
-  --vote-hover: rgba(245, 158, 11, .12);
-  --vote-active: rgba(245, 158, 11, .24);
+  --vote-pill-bg: #1c212c;
+  --vote-hover: #232a38;
+  --vote-active-bg: rgba(59, 130, 246, .22);
   --accept-bg: rgba(47, 169, 110, .12);
 }
 
@@ -170,17 +172,21 @@ a:hover { color: var(--primary-dark); }
   border-top: 1px dashed var(--border);
 }
 
-/* 赞同组件（横排：▲ 数字 ▼） */
-.vote { display: flex; align-items: center; gap: 2px; }
-.vote button {
-  border: none; background: none; cursor: pointer; font-size: 17px;
-  color: #9ca3af; padding: 4px 8px; line-height: 1; border-radius: 8px;
+/* 赞同组件（药丸按钮组：[👍 赞同 N] [👎]） */
+.vote-row { display: flex; gap: 8px; }
+.vote-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: none; cursor: pointer; padding: 7px 14px;
+  background: var(--vote-pill-bg); color: var(--muted);
+  border-radius: 8px; font-size: 14px; line-height: 1;
   user-select: none; -webkit-tap-highlight-color: transparent;
   transition: background .15s, color .15s;
 }
-.vote button:hover { color: var(--orange); background: var(--vote-hover); }
-.vote button.active { color: var(--orange); background: var(--vote-active); }
-.vote .count { min-width: 30px; text-align: center; font-size: 17px; font-weight: 700; color: var(--text); }
+.vote-pill svg { width: 16px; height: 16px; fill: currentColor; }
+.vote-pill:hover { color: var(--primary); background: var(--vote-hover); }
+.vote-pill.active { color: var(--primary); background: var(--vote-active-bg); font-weight: 600; }
+.vote-pill .n { font-weight: 700; }
+.vote-pill.icon-only { padding: 7px 11px; }
 .owner-actions { margin-left: auto; display: flex; gap: 8px; align-self: center; }
 .section-title {
   font-size: 16px; font-weight: 700; margin: 22px 0 10px;
