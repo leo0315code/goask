@@ -38,7 +38,10 @@ const sort = computed(() => route.query.sort || 'latest')
 const keyword = computed(() => route.query.q || '')
 const tag = computed(() => route.query.tag || '')
 const time = computed(() => route.query.time || 'all')
+// 筛选面板默认收起；URL 里已有激活的时间/采纳筛选时自动展开
+const filtersOpen = ref(time.value !== 'all' || (route.query.accepted || 'all') !== 'all')
 const accepted = computed(() => route.query.accepted || 'all')
+const activeFilterCount = computed(() => (time.value !== 'all' ? 1 : 0) + (accepted.value !== 'all' ? 1 : 0))
 const page = computed(() => Number(route.query.page) || 1)
 const pageSize = 15
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / pageSize)))
@@ -98,17 +101,23 @@ watch(() => route.query, fetchList, { immediate: true })
         <h1 v-if="keyword">搜索“{{ keyword }}”<span class="muted-h">（{{ total }} 条结果）</span></h1>
         <h1 v-else-if="tag">标签「{{ tag }}」<span class="muted-h">（{{ total }} 个问题）</span></h1>
         <h1 v-else>全部问题</h1>
-        <div v-if="!keyword && !tag" class="tabs">
-          <button
-            v-for="s in sorts" :key="s.key"
-            class="tab" :class="{ active: sort === s.key }"
-            @click="go({ sort: s.key })"
-          >{{ s.label }}</button>
+        <div class="head-actions">
+          <div v-if="!keyword && !tag" class="tabs">
+            <button
+              v-for="s in sorts" :key="s.key"
+              class="tab" :class="{ active: sort === s.key }"
+              @click="go({ sort: s.key })"
+            >{{ s.label }}</button>
+          </div>
+          <router-link v-else class="btn small" to="/">查看全部</router-link>
+          <button class="filter-toggle" :class="{ active: filtersOpen }" @click="filtersOpen = !filtersOpen">
+            <svg viewBox="0 0 24 24"><path d="M3 5h18l-7 8.46V19l-4 2v-7.54L3 5z"/></svg>
+            筛选<span v-if="activeFilterCount > 0" class="filter-count">{{ activeFilterCount }}</span>
+          </button>
         </div>
-        <router-link v-else class="btn small" to="/">查看全部</router-link>
       </div>
 
-      <div v-if="!keyword" class="filter-row">
+      <div v-if="!keyword && filtersOpen" class="filter-row">
         <span class="filter-label">时间</span>
         <button
           v-for="t in times" :key="t.key"
@@ -117,7 +126,7 @@ watch(() => route.query, fetchList, { immediate: true })
         >{{ t.label }}</button>
       </div>
 
-      <div v-if="!keyword" class="filter-row">
+      <div v-if="!keyword && filtersOpen" class="filter-row">
         <span class="filter-label">采纳</span>
         <button
           v-for="a in accepts" :key="a.key"
