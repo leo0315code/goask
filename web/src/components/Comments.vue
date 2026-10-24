@@ -1,5 +1,5 @@
 <script setup>
-// 评论列表 + 发表评论（Markdown 渲染；作者/管理员可删除）
+// 评论列表 + 发表评论（头像 + 结构化排版；Markdown 渲染；作者/管理员可删除）
 import { nextTick, onMounted, ref, watch } from 'vue'
 import { api } from '../api'
 import { store } from '../store'
@@ -67,24 +67,37 @@ onMounted(fetchList)
 
 <template>
   <div class="comments">
+    <div class="comments-head">{{ total }} 条评论</div>
+
     <div v-for="c in list" :key="c.id" class="comment">
-      <router-link class="c-author" :to="'/u/' + c.author.username">{{ c.author.username }}</router-link>
-      <MarkdownContent class="comment-md" :content="c.content" />
-      <span class="c-time">{{ timeAgo(c.created_at) }}</span>
-      <button v-if="canManage(c)" class="btn small danger c-del" @click="remove(c)">删除</button>
-    </div>
-    <div v-if="store.me" class="comment-form">
-      <textarea
-        ref="inputEl" v-model="content" rows="2" maxlength="1000"
-        placeholder="添加评论…（支持 Markdown，⌘/Ctrl + Enter 发送）"
-        @keydown.ctrl.enter.prevent="submit"
-        @keydown.meta.enter.prevent="submit"
-      ></textarea>
-      <div class="cf-actions">
-        <span class="hint">{{ content.length }}/1000</span>
-        <button class="btn primary small" :disabled="submitting || !content.trim()" @click="submit">评论</button>
+      <router-link class="avatar xs" :to="'/u/' + c.author.username">{{ c.author.username[0].toUpperCase() }}</router-link>
+      <div class="comment-body">
+        <div class="comment-head">
+          <router-link class="c-author" :to="'/u/' + c.author.username">{{ c.author.username }}</router-link>
+          <span v-if="c.author.role === 'admin'" class="tag">管理员</span>
+          <span class="c-time">{{ timeAgo(c.created_at) }}</span>
+          <button v-if="canManage(c)" class="c-del" @click="remove(c)">删除</button>
+        </div>
+        <MarkdownContent class="comment-md" :content="c.content" />
       </div>
     </div>
-    <div v-else class="hint">登录后可评论</div>
+    <div v-if="list.length === 0" class="hint">还没有评论，来抢沙发</div>
+
+    <div v-if="store.me" class="comment-form">
+      <div class="avatar xs">{{ store.me.username[0].toUpperCase() }}</div>
+      <div class="cf-main">
+        <textarea
+          ref="inputEl" v-model="content" rows="2" maxlength="1000"
+          placeholder="添加评论…（支持 Markdown，⌘/Ctrl + Enter 发送）"
+          @keydown.ctrl.enter.prevent="submit"
+          @keydown.meta.enter.prevent="submit"
+        ></textarea>
+        <div class="cf-actions">
+          <span class="hint">{{ content.length }}/1000</span>
+          <button class="btn primary small" :disabled="submitting || !content.trim()" @click="submit">评论</button>
+        </div>
+      </div>
+    </div>
+    <div v-else class="hint comment-form-hint">登录后可评论</div>
   </div>
 </template>
