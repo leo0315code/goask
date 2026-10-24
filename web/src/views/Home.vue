@@ -38,8 +38,15 @@ const sort = computed(() => route.query.sort || 'latest')
 const keyword = computed(() => route.query.q || '')
 const tag = computed(() => route.query.tag || '')
 const time = computed(() => route.query.time || 'all')
-// 筛选面板默认收起；URL 里已有激活的时间/采纳筛选时自动展开
-const filtersOpen = ref(time.value !== 'all' || (route.query.accepted || 'all') !== 'all')
+// 筛选面板开合状态记入 sessionStorage：用户手动收起后，切 Tab/翻页（组件重建）不弹回；
+// 无历史偏好时，URL 带激活筛选则自动展开
+const savedOpen = sessionStorage.getItem('goask_filters_open')
+const filtersOpen = ref(
+  savedOpen !== null
+    ? savedOpen === '1'
+    : time.value !== 'all' || (route.query.accepted || 'all') !== 'all'
+)
+watch(filtersOpen, (v) => sessionStorage.setItem('goask_filters_open', v ? '1' : '0'))
 const accepted = computed(() => route.query.accepted || 'all')
 const activeFilterCount = computed(() => (time.value !== 'all' ? 1 : 0) + (accepted.value !== 'all' ? 1 : 0))
 const page = computed(() => Number(route.query.page) || 1)
