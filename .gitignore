@@ -3,9 +3,11 @@
 
 # 构建产物
 bin/
-dist/
 *.test
 *.out
+
+# 前端依赖（web/dist 构建产物随仓库提交，保证 go build 开箱即用）
+web/node_modules/
 
 # 日志
 *.log

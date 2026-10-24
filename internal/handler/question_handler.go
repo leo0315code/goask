@@ -149,3 +149,14 @@ func (h *QuestionHandler) Search(c *gin.Context) {
 	}
 	pageOK(c, views, total, pq)
 }
+
+// ListByUser 用户主页的提问列表。
+func (h *QuestionHandler) ListByUser(c *gin.Context) {
+	pq := pageQuery(c)
+	views, total, err := h.questions.ListByUser(c.Request.Context(), c.Param("username"), pq)
+	if err != nil {
+		httpx.Fail(c, err)
+		return
+	}
+	pageOK(c, views, total, pq)
+}

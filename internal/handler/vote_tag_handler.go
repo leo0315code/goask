@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/leo0315code/goask/internal/middleware"
+	"github.com/leo0315code/goask/internal/model"
 	"github.com/leo0315code/goask/internal/pkg/apperr"
 	"github.com/leo0315code/goask/internal/pkg/httpx"
 	"github.com/leo0315code/goask/internal/service"
@@ -39,6 +41,27 @@ func (h *VoteHandler) Vote(c *gin.Context) {
 		return
 	}
 	httpx.OK(c, state)
+}
+
+// Get 查询当前用户对目标的投票值（未登录返回 0）。
+func (h *VoteHandler) Get(c *gin.Context) {
+	uid, ok := middleware.UserID(c)
+	if !ok {
+		httpx.OK(c, gin.H{"value": 0})
+		return
+	}
+	targetType := c.Query("target_type")
+	targetID, err := strconv.ParseUint(c.Query("target_id"), 10, 64)
+	if err != nil || (targetType != model.TargetQuestion && targetType != model.TargetAnswer) || targetID == 0 {
+		httpx.Fail(c, apperr.With(apperr.ErrBadRequest, "参数错误: target_type / target_id"))
+		return
+	}
+	value, err := h.votes.ViewerVote(c.Request.Context(), uid, targetType, targetID)
+	if err != nil {
+		httpx.Fail(c, err)
+		return
+	}
+	httpx.OK(c, gin.H{"value": value})
 }
 
 type TagHandler struct {

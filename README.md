@@ -1,9 +1,10 @@
 # GoAsk
 
-基于 **Go + MySQL** 的问答社区后端系统（类 Stack Overflow），开箱即可部署上线。
+基于 **Go + MySQL** 的问答社区系统（类 Stack Overflow），自带完整 Web 页面，单个二进制开箱部署。
 
 ## 功能
 
+- **Web 页面**：首页（最新/热门/未回答/标签/搜索 + 分页）、问题详情（投票/评论/回答/采纳/编辑删除）、提问、登录注册、个人主页（声望与提问列表）—— Vue 3 构建产物嵌入 Go 二进制，单文件部署
 - 用户：注册 / 登录（JWT）/ 资料管理 / 声望与计数
 - 问题：发布、编辑、软删除、关闭、最新 / 热门 / 未回答 / 按标签列表
 - 回答：发布、编辑、删除、提问者采纳（可更换）
@@ -15,7 +16,7 @@
 
 ## 技术栈
 
-Go 1.22+ · Gin · GORM · MySQL 8 · JWT · bcrypt · slog · Docker Compose
+Go 1.22+ · Gin · GORM · MySQL 8 · JWT · bcrypt · slog · Vue 3 · Vite · Docker Compose
 
 ## 快速开始
 
@@ -23,22 +24,34 @@ Go 1.22+ · Gin · GORM · MySQL 8 · JWT · bcrypt · slog · Docker Compose
 
 ```bash
 cp .env.example .env        # 修改 JWT_SECRET 等配置
-docker compose up -d --build
-curl http://localhost:8080/healthz
+docker compose -f deployments/docker-compose.yml up -d --build
+# 浏览器打开 http://localhost:8080
 ```
 
-应用启动时自动执行 `migrations/` 下的数据库迁移。
+镜像构建分两阶段：Node 编译前端 → Go 编译并嵌入前端产物。应用启动时自动执行 `migrations/` 下的数据库迁移。
 
 ### 方式二：本地运行
 
-前置：本机有 MySQL 8，并已创建数据库：
+前置：MySQL 8 + Node 18+（构建页面）+ Go 1.22+：
 
 ```bash
 mysql -h 127.0.0.1 -uroot -p -e "CREATE DATABASE IF NOT EXISTS goask DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_unicode_ci"
 
 cp .env.example .env        # 填写 DB_USER / DB_PASSWORD / JWT_SECRET
-go run ./cmd/server          # 首次启动自动建表
+make build                  # 构建前端 + 后端 → bin/goask
+./bin/goask                 # 启动，浏览器打开 http://localhost:8080
 ```
+
+### 前端独立开发（热更新）
+
+```bash
+cd web && npm install
+npm run dev                 # http://localhost:5173，/api 自动代理到 :8080 的后端
+```
+
+## 演示账号（本地演示数据）
+
+`leo` / `alice` / `bob`，密码均为 `secret123`。
 
 更多 API 用例见 [docs/api.md](docs/api.md) 第 9 节的 curl 冒烟脚本。
 
@@ -75,6 +88,7 @@ goask/
 │   ├── model/           # 数据模型与状态常量
 │   ├── middleware/      # 认证 / CORS / 限流 / 日志 / 恢复
 │   └── pkg/             # apperr 错误码、httpx 响应、jwtx、passwordx
+├── web/                 # Vue 3 + Vite 前端（src/ 源码，dist/ 构建产物 embed 进二进制）
 ├── migrations/          # SQL 迁移文件（启动时自动按序执行）
 ├── docs/                # 架构 / 数据库 / API 设计文档
 ├── deployments/         # docker-compose.yml

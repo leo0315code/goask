@@ -131,6 +131,22 @@ func (s *QuestionService) List(ctx context.Context, sort, tag string, pq httpx.P
 	return views, total, err
 }
 
+// ListByUser 某用户的提问列表（个人主页用）。
+func (s *QuestionService) ListByUser(ctx context.Context, username string, pq httpx.PageQuery) ([]QuestionView, int64, error) {
+	u, err := s.users.GetByUsername(ctx, username)
+	if err != nil {
+		return nil, 0, err
+	}
+	list, total, err := s.questions.List(ctx, repository.QuestionListQuery{
+		UserID: u.ID, Page: pq.Page, PageSize: pq.PageSize,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	views, err := s.assemble(ctx, list)
+	return views, total, err
+}
+
 // Search 中文全文检索（标题 + 正文），按相关度排序。
 func (s *QuestionService) Search(ctx context.Context, keyword string, pq httpx.PageQuery) ([]QuestionView, int64, error) {
 	keyword = strings.TrimSpace(keyword)

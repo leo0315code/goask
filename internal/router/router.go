@@ -2,8 +2,12 @@
 package router
 
 import (
+	"bytes"
 	"log/slog"
 	"net/http"
+	"path/filepath"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -11,9 +15,11 @@ import (
 	"github.com/leo0315code/goask/internal/config"
 	"github.com/leo0315code/goask/internal/handler"
 	"github.com/leo0315code/goask/internal/middleware"
+	"github.com/leo0315code/goask/internal/pkg/apperr"
 	"github.com/leo0315code/goask/internal/pkg/httpx"
 	"github.com/leo0315code/goask/internal/repository"
 	"github.com/leo0315code/goask/internal/service"
+	"github.com/leo0315code/goask/web"
 )
 
 func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
@@ -54,6 +60,9 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 		httpx.OK(c, gin.H{"status": "ok"})
 	})
 	r.GET("/readyz", ready(db))
+
+	// 内嵌 Web 前端：静态文件直出，其余路径回退 index.html（SPA）
+	r.NoRoute(webAssets())
 
 	authLimiter := middleware.RateLimit(cfg.RateLimitAuth)
 	authRequired := middleware.Auth(cfg.JWTSecret, true)
@@ -100,9 +109,41 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 
 	// 投票与标签
 	v1.POST("/votes", authRequired, voteH.Vote)
+	v1.GET("/votes", voteH.Get)
 	v1.GET("/tags", tagH.List)
 
+	// 用户主页下的提问列表
+	v1.GET("/users/:username/questions", questionH.ListByUser)
+
 	return r
+}
+
+// webAssets 输出内嵌前端资源（web/dist）；带扩展名的路径未命中时 404，其余回退 index.html（SPA）。
+func webAssets() gin.HandlerFunc {
+	file := func(name string) ([]byte, bool) {
+		data, err := web.Dist.ReadFile("dist/" + name)
+		return data, err == nil
+	}
+	return func(c *gin.Context) {
+		p := strings.TrimPrefix(c.Request.URL.Path, "/")
+		if p == "" {
+			p = "index.html"
+		}
+		if data, ok := file(p); ok {
+			http.ServeContent(c.Writer, c.Request, filepath.Base(p), time.Time{}, bytes.NewReader(data))
+			return
+		}
+		if filepath.Ext(p) != "" {
+			httpx.Fail(c, apperr.ErrNotFound)
+			return
+		}
+		data, ok := file("index.html")
+		if !ok {
+			httpx.Fail(c, apperr.ErrInternal)
+			return
+		}
+		http.ServeContent(c.Writer, c.Request, "index.html", time.Time{}, bytes.NewReader(data))
+	}
 }
 
 // ready 就绪探针：校验数据库可用。
