@@ -68,6 +68,9 @@ func (s *AnswerService) Create(ctx context.Context, userID, questionID uint64, c
 	if q.Status == model.QuestionStatusClosed {
 		return nil, apperr.With(apperr.ErrValidation, "问题已关闭，不能再回答")
 	}
+	if q.AcceptedAnswerID != nil {
+		return nil, apperr.With(apperr.ErrValidation, "该问题已采纳答案（已解决），不再接受新的回答")
+	}
 	if q.UserID == userID {
 		return nil, apperr.With(apperr.ErrValidation, "不能回答自己的问题")
 	}

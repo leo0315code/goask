@@ -169,7 +169,7 @@ Query：`page`、`page_size`、`sort`（`latest` 默认 / `votes`）；被采纳
 {"content": "用 gorm.io/driver/mysql ……"}
 ```
 
-事务内：创建回答 + `answer_count`+1 + 刷新问题活动时间。提问者回答自己的问题不允许（`42200`）。
+事务内：创建回答 + `answer_count`+1 + 刷新问题活动时间。以下情况返回 `42200`：提问者回答自己的问题、问题已关闭、**问题已采纳答案（已解决）**。
 
 ### PUT `/api/v1/answers/:id`　（仅作者）/ DELETE `/api/v1/answers/:id`　（作者或管理员，软删除并回减计数）
 

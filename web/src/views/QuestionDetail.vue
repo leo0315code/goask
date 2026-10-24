@@ -34,7 +34,9 @@ const answering = ref(false)
 const isAuthor = computed(() => store.me && q.value && store.me.id === q.value.user_id)
 const canManage = computed(() => isAuthor.value || (store.me && store.me.role === 'admin'))
 const canAnswer = computed(
-  () => store.me && q.value && q.value.status === 'open' && store.me.id !== q.value.user_id
+  () =>
+    store.me && q.value && q.value.status === 'open' &&
+    !q.value.accepted_answer_id && store.me.id !== q.value.user_id
 )
 
 async function fetchAll() {
@@ -267,6 +269,9 @@ onMounted(fetchAll)
       <div class="actions">
         <button class="btn primary" :disabled="answering" @click="submitAnswer">发表回答</button>
       </div>
+    </div>
+    <div v-else-if="q.accepted_answer_id" class="card empty resolved-notice">
+      ✓ 该问题已解决（已采纳答案），不再接受新的回答
     </div>
     <div v-else-if="!store.me" class="card empty">
       <router-link to="/login">登录</router-link> 后可以回答该问题
