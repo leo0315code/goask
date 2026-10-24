@@ -33,6 +33,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	authSvc := service.NewAuthService(repos.Users, cfg, captchaStore)
 	userSvc := service.NewUserService(repos.Users, cfg.BcryptCost)
 	adminSvc := service.NewAdminService(repos.Admin)
+	favoriteSvc := service.NewFavoriteService(repos.Favorites, repos.Questions, repos.Users)
 	questionSvc := service.NewQuestionService(repos.Questions, repos.Answers, repos.Users, repos.Tags, repos.Votes, spamGuard, notificationSvc)
 	answerSvc := service.NewAnswerService(repos.Answers, repos.Questions, repos.Users, spamGuard, notificationSvc)
 	commentSvc := service.NewCommentService(repos.Comments, repos.Questions, repos.Answers, repos.Users, spamGuard, notificationSvc)
@@ -98,6 +99,7 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 	notificationH := handler.NewNotificationHandler(notificationSvc, notificationHub, cfg.JWTSecret, loadUser)
 	adminH := handler.NewAdminHandler(userSvc, adminSvc)
 	uploadH := handler.NewUploadHandler(cfg.UploadDir, cfg.MaxUploadSize)
+	favoriteH := handler.NewFavoriteHandler(favoriteSvc)
 
 	v1 := r.Group("/api/v1")
 	v1.Use(authOptional)
@@ -119,6 +121,12 @@ func New(cfg *config.Config, db *gorm.DB) *gin.Engine {
 
 	// 图片上传
 	v1.POST("/upload/image", authRequired, uploadH.Image)
+
+	// 收藏
+	v1.POST("/questions/:id/favorite", authRequired, favoriteH.Toggle)
+	v1.GET("/questions/:id/favorite", favoriteH.Get)
+	v1.GET("/me/favorites", authRequired, favoriteH.MyFavorites)
+	v1.GET("/users/:username/answers", favoriteH.UserAnswers)
 
 	// 管理端
 	v1.GET("/admin/stats", authRequired, adminH.Stats)

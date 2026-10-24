@@ -28,6 +28,7 @@ type Repos struct {
 	Spam          *SpamRepo
 	Notifications *NotificationRepo
 	Admin         *AdminRepo
+	Favorites     *FavoriteRepo
 }
 
 func NewRepos(db *gorm.DB) *Repos {
@@ -41,6 +42,7 @@ func NewRepos(db *gorm.DB) *Repos {
 		Spam:          &SpamRepo{db: db},
 		Notifications: &NotificationRepo{db: db},
 		Admin:         &AdminRepo{db: db},
+		Favorites:     &FavoriteRepo{db: db},
 	}
 }
 

@@ -110,6 +110,18 @@ Authorization: Bearer <token>
 
 公开主页：资料 + 计数（不含 email）。
 
+### GET `/api/v1/users/:username/answers`　分页
+
+某用户的回答列表（含问题标题、赞同数、是否被采纳）。
+
+### GET `/api/v1/me/favorites`　（需登录）分页
+
+我的收藏问题列表（仅本人可见，含收藏时间）。
+
+### POST / GET `/api/v1/questions/:id/favorite`
+
+收藏切换（需登录，返回 `{favorited}`）/ 查询是否已收藏（未登录返回 false）。
+
 ### PUT `/api/v1/users/me/password`　（需登录）
 
 ```json

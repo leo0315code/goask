@@ -532,3 +532,7 @@ a:hover { color: var(--primary-dark); }
   resize: vertical;
 }
 .md-preview { background: var(--card); padding: 12px 14px; overflow: auto; }
+
+.act-link.fav { color: var(--orange); font-weight: 600; }
+.act-link.fav.on { color: var(--orange); }
+.answer-item .meta { margin-top: 8px; }

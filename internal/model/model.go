@@ -123,6 +123,15 @@ type Author struct {
 	Role      string `json:"role"`
 }
 
+type Favorite struct {
+	ID         uint64    `gorm:"primaryKey;column:id" json:"id"`
+	UserID     uint64    `gorm:"column:user_id" json:"user_id"`
+	QuestionID uint64    `gorm:"column:question_id" json:"question_id"`
+	CreatedAt  time.Time `gorm:"column:created_at" json:"created_at"`
+}
+
+func (Favorite) TableName() string { return "favorites" }
+
 // Notification 通知类型常量。
 const (
 	NotifAnswer          = "answer"           // 回答了你的问题

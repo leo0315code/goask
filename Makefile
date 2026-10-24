@@ -1,4 +1,4 @@
-.PHONY: help run build web test vet tidy up down logs clean
+.PHONY: help run build web test vet e2e tidy up down logs clean
 
 help: ## 显示帮助
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
@@ -17,6 +17,9 @@ test: ## 运行单元测试
 
 vet: ## 静态检查
 	go vet ./...
+
+e2e: ## 端到端冒烟测试（需本地服务已启动）
+	python3 scripts/e2e.py
 
 tidy: ## 整理 Go 依赖
 	go mod tidy

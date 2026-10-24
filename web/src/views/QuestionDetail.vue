@@ -32,6 +32,17 @@ const editAContent = ref('')
 
 const answerForm = ref('')
 const answering = ref(false)
+const favorited = ref(false)
+
+async function toggleFavorite() {
+  try {
+    const d = await api('POST', `/questions/${id}/favorite`)
+    favorited.value = d.favorited
+    toast(d.favorited ? '已收藏' : '已取消收藏', 'success')
+  } catch (e) {
+    toast(e.message)
+  }
+}
 
 const isAuthor = computed(() => store.me && q.value && store.me.id === q.value.user_id)
 const canManage = computed(() => isAuthor.value || (store.me && store.me.role === 'admin'))
@@ -54,6 +65,9 @@ async function fetchAll() {
     notFound.value = true
     loading.value = false
     return
+  }
+  if (store.me) {
+    api('GET', `/questions/${id}/favorite`).then((d) => { favorited.value = d.favorited }).catch(() => {})
   }
   try {
     const ans = await api('GET', `/questions/${id}/answers?page=1&page_size=100&sort=votes`)
@@ -208,6 +222,9 @@ onMounted(fetchAll)
           target-type="question" :target-id="q.id"
           :upvotes="q.upvote_count" :downvotes="q.downvote_count" :value="q.viewer_vote"
         />
+        <button v-if="store.me" class="act-link fav" :class="{ on: favorited }" @click="toggleFavorite">
+          {{ favorited ? '⭐ 已收藏' : '☆ 收藏' }}
+        </button>
         <span class="spacer"></span>
         <template v-if="isAuthor && q.status !== 'closed' && !editingQuestion">
           <button class="act-link" @click="startEditQuestion">编辑</button>
