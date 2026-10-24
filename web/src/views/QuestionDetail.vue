@@ -34,6 +34,11 @@ const answering = ref(false)
 
 const isAuthor = computed(() => store.me && q.value && store.me.id === q.value.user_id)
 const canManage = computed(() => isAuthor.value || (store.me && store.me.role === 'admin'))
+// 采纳按钮可见性：问题开放中且尚未采纳过，且该回答未被采纳
+const canAccept = (a) =>
+  !!q.value && isAuthor.value && q.value.status === 'open' &&
+  !q.value.accepted_answer_id && !a.is_accepted
+
 const canAnswer = computed(
   () =>
     store.me && q.value && q.value.status === 'open' &&
@@ -243,7 +248,7 @@ onMounted(fetchAll)
         </span>
         <span class="spacer"></span>
         <button
-          v-if="isAuthor && !a.is_accepted"
+          v-if="canAccept(a)"
           class="act-link accept" @click="accept(a)"
         >✓ 采纳</button>
         <button
